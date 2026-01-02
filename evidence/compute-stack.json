@@ -1,0 +1,125 @@
+{
+    "Stacks": [
+        {
+            "StackId": "arn:aws:cloudformation:us-east-2:956484174137:stack/mp-compute/751e1120-e775-11f0-9700-064b1b71a08f",
+            "StackName": "mp-compute",
+            "ChangeSetId": "arn:aws:cloudformation:us-east-2:956484174137:changeSet/awscli-cloudformation-package-deploy-1767315210/ad729699-beee-4d91-add7-78126943fb46",
+            "Description": "MasterProject Compute Infrastructure\nCreates ALB, Target Group, IAM Role, Launch Template, and Auto Scaling Group\nwith full observability agents (CloudWatch, X-Ray, CodeDeploy).\n",
+            "Parameters": [
+                {
+                    "ParameterKey": "Project",
+                    "ParameterValue": "MasterProject"
+                },
+                {
+                    "ParameterKey": "MinSize",
+                    "ParameterValue": "2"
+                },
+                {
+                    "ParameterKey": "NetworkStackName",
+                    "ParameterValue": "mp-network"
+                },
+                {
+                    "ParameterKey": "SecurityStackName",
+                    "ParameterValue": "mp-security"
+                },
+                {
+                    "ParameterKey": "LatestAmiId",
+                    "ParameterValue": "/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-6.1-x86_64",
+                    "ResolvedValue": "ami-00e428798e77d38d9"
+                },
+                {
+                    "ParameterKey": "Environment",
+                    "ParameterValue": "dev"
+                },
+                {
+                    "ParameterKey": "DesiredCapacity",
+                    "ParameterValue": "2"
+                },
+                {
+                    "ParameterKey": "InstanceType",
+                    "ParameterValue": "t3.small"
+                },
+                {
+                    "ParameterKey": "MaxSize",
+                    "ParameterValue": "6"
+                }
+            ],
+            "CreationTime": "2026-01-02T00:53:31.197000+00:00",
+            "LastUpdatedTime": "2026-01-02T00:53:37.171000+00:00",
+            "RollbackConfiguration": {},
+            "StackStatus": "CREATE_COMPLETE",
+            "DisableRollback": false,
+            "NotificationARNs": [],
+            "Capabilities": [
+                "CAPABILITY_NAMED_IAM"
+            ],
+            "Outputs": [
+                {
+                    "OutputKey": "ALBFullName",
+                    "OutputValue": "app/MasterProject-dev-alb/aabbfc6c5b03f9d9",
+                    "Description": "Full name of the ALB for CloudWatch metrics",
+                    "ExportName": "mp-compute-ALBFullName"
+                },
+                {
+                    "OutputKey": "TargetGroupArn",
+                    "OutputValue": "arn:aws:elasticloadbalancing:us-east-2:956484174137:targetgroup/MasterProject-dev-tg/bab4464b6b00a708",
+                    "Description": "ARN of the Target Group",
+                    "ExportName": "mp-compute-TargetGroupArn"
+                },
+                {
+                    "OutputKey": "TargetGroupFullName",
+                    "OutputValue": "targetgroup/MasterProject-dev-tg/bab4464b6b00a708",
+                    "Description": "Full name of the Target Group for CloudWatch metrics",
+                    "ExportName": "mp-compute-TargetGroupFullName"
+                },
+                {
+                    "OutputKey": "ALBDnsName",
+                    "OutputValue": "MasterProject-dev-alb-1237499023.us-east-2.elb.amazonaws.com",
+                    "Description": "DNS name of the Application Load Balancer",
+                    "ExportName": "mp-compute-ALBDnsName"
+                },
+                {
+                    "OutputKey": "AutoScalingGroupName",
+                    "OutputValue": "MasterProject-dev-asg",
+                    "Description": "Name of the Auto Scaling Group",
+                    "ExportName": "mp-compute-AutoScalingGroupName"
+                },
+                {
+                    "OutputKey": "EC2RoleArn",
+                    "OutputValue": "arn:aws:iam::956484174137:role/MasterProject-dev-ec2-role",
+                    "Description": "ARN of the EC2 IAM Role",
+                    "ExportName": "mp-compute-EC2RoleArn"
+                },
+                {
+                    "OutputKey": "LaunchTemplateId",
+                    "OutputValue": "lt-082de4dadbd02401f",
+                    "Description": "ID of the Launch Template",
+                    "ExportName": "mp-compute-LaunchTemplateId"
+                },
+                {
+                    "OutputKey": "ALBArn",
+                    "OutputValue": "arn:aws:elasticloadbalancing:us-east-2:956484174137:loadbalancer/app/MasterProject-dev-alb/aabbfc6c5b03f9d9",
+                    "Description": "ARN of the Application Load Balancer",
+                    "ExportName": "mp-compute-ALBArn"
+                },
+                {
+                    "OutputKey": "StackName",
+                    "OutputValue": "mp-compute",
+                    "Description": "Stack name for cross-stack references",
+                    "ExportName": "mp-compute-StackName"
+                }
+            ],
+            "Tags": [],
+            "EnableTerminationProtection": false,
+            "DriftInformation": {
+                "StackDriftStatus": "NOT_CHECKED"
+            },
+            "LastOperations": [
+                {
+                    "OperationType": "CREATE_STACK",
+                    "OperationId": "0e144ce8-9192-4abd-83a7-646506cbf58a"
+                }
+            ]
+        }
+    ]
+}

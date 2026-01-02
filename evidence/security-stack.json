@@ -1,0 +1,76 @@
+{
+    "Stacks": [
+        {
+            "StackId": "arn:aws:cloudformation:us-east-2:956484174137:stack/mp-security/5d21c710-e775-11f0-bb09-02fb4b4a53b1",
+            "StackName": "mp-security",
+            "ChangeSetId": "arn:aws:cloudformation:us-east-2:956484174137:changeSet/awscli-cloudformation-package-deploy-1767315169/1d63bf2b-205b-4b76-87ea-87a5942737ba",
+            "Description": "MasterProject Security Groups\nDefines security groups for ALB, EC2, RDS, and Redis with proper \ningress/egress rules following least-privilege principles.\n",
+            "Parameters": [
+                {
+                    "ParameterKey": "Project",
+                    "ParameterValue": "MasterProject"
+                },
+                {
+                    "ParameterKey": "NetworkStackName",
+                    "ParameterValue": "mp-network"
+                },
+                {
+                    "ParameterKey": "Environment",
+                    "ParameterValue": "dev"
+                }
+            ],
+            "CreationTime": "2026-01-02T00:52:50.886000+00:00",
+            "LastUpdatedTime": "2026-01-02T00:52:56.672000+00:00",
+            "RollbackConfiguration": {},
+            "StackStatus": "CREATE_COMPLETE",
+            "DisableRollback": false,
+            "NotificationARNs": [],
+            "Capabilities": [
+                "CAPABILITY_NAMED_IAM"
+            ],
+            "Outputs": [
+                {
+                    "OutputKey": "ALBSecurityGroupId",
+                    "OutputValue": "sg-0b55e103c037ceb5e",
+                    "Description": "ALB Security Group ID",
+                    "ExportName": "mp-security-ALBSecurityGroupId"
+                },
+                {
+                    "OutputKey": "RedisSecurityGroupId",
+                    "OutputValue": "sg-0aafe86fab39296be",
+                    "Description": "Redis Security Group ID",
+                    "ExportName": "mp-security-RedisSecurityGroupId"
+                },
+                {
+                    "OutputKey": "EC2SecurityGroupId",
+                    "OutputValue": "sg-0989e3956b0a126ad",
+                    "Description": "EC2 Security Group ID",
+                    "ExportName": "mp-security-EC2SecurityGroupId"
+                },
+                {
+                    "OutputKey": "RDSSecurityGroupId",
+                    "OutputValue": "sg-035425b3a76c8106f",
+                    "Description": "RDS Security Group ID",
+                    "ExportName": "mp-security-RDSSecurityGroupId"
+                },
+                {
+                    "OutputKey": "StackName",
+                    "OutputValue": "mp-security",
+                    "Description": "Stack name for cross-stack references",
+                    "ExportName": "mp-security-StackName"
+                }
+            ],
+            "Tags": [],
+            "EnableTerminationProtection": false,
+            "DriftInformation": {
+                "StackDriftStatus": "NOT_CHECKED"
+            },
+            "LastOperations": [
+                {
+                    "OperationType": "CREATE_STACK",
+                    "OperationId": "7d619e90-3ea9-4d16-93d6-762df0d3d095"
+                }
+            ]
+        }
+    ]
+}

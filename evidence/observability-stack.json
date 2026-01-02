@@ -1,0 +1,90 @@
+{
+    "Stacks": [
+        {
+            "StackId": "arn:aws:cloudformation:us-east-2:956484174137:stack/mp-observability/e8c1f2e0-e775-11f0-943b-069474327aef",
+            "StackName": "mp-observability",
+            "ChangeSetId": "arn:aws:cloudformation:us-east-2:956484174137:changeSet/awscli-cloudformation-package-deploy-1767315404/2331fc60-8e32-41cb-aae2-45a7084b45ce",
+            "Description": "MasterProject Observability Stack\nCreates CloudWatch Log Groups, Metric Filters, Alarms, SNS Topic, and Dashboard\nfor comprehensive monitoring and alerting.\n",
+            "Parameters": [
+                {
+                    "ParameterKey": "Project",
+                    "ParameterValue": "MasterProject"
+                },
+                {
+                    "ParameterKey": "ComputeStackName",
+                    "ParameterValue": "mp-compute"
+                },
+                {
+                    "ParameterKey": "AlarmEmail",
+                    "ParameterValue": ""
+                },
+                {
+                    "ParameterKey": "Environment",
+                    "ParameterValue": "dev"
+                },
+                {
+                    "ParameterKey": "LogRetentionDays",
+                    "ParameterValue": "7"
+                }
+            ],
+            "CreationTime": "2026-01-02T00:56:45.151000+00:00",
+            "LastUpdatedTime": "2026-01-02T00:56:51.045000+00:00",
+            "RollbackConfiguration": {},
+            "StackStatus": "CREATE_COMPLETE",
+            "DisableRollback": false,
+            "NotificationARNs": [],
+            "Capabilities": [
+                "CAPABILITY_NAMED_IAM"
+            ],
+            "Outputs": [
+                {
+                    "OutputKey": "DashboardName",
+                    "OutputValue": "MasterProject-Dashboard",
+                    "Description": "CloudWatch Dashboard Name",
+                    "ExportName": "mp-observability-DashboardName"
+                },
+                {
+                    "OutputKey": "SystemLogGroupName",
+                    "OutputValue": "/masterproject/system",
+                    "Description": "System Log Group Name",
+                    "ExportName": "mp-observability-SystemLogGroupName"
+                },
+                {
+                    "OutputKey": "AppLogGroupArn",
+                    "OutputValue": "arn:aws:logs:us-east-2:956484174137:log-group:/masterproject/app:*",
+                    "Description": "Application Log Group ARN",
+                    "ExportName": "mp-observability-AppLogGroupArn"
+                },
+                {
+                    "OutputKey": "AppLogGroupName",
+                    "OutputValue": "/masterproject/app",
+                    "Description": "Application Log Group Name",
+                    "ExportName": "mp-observability-AppLogGroupName"
+                },
+                {
+                    "OutputKey": "StackName",
+                    "OutputValue": "mp-observability",
+                    "Description": "Stack name for cross-stack references",
+                    "ExportName": "mp-observability-StackName"
+                },
+                {
+                    "OutputKey": "AlarmTopicArn",
+                    "OutputValue": "arn:aws:sns:us-east-2:956484174137:MasterProject-dev-alarms",
+                    "Description": "SNS Topic ARN for Alarms",
+                    "ExportName": "mp-observability-AlarmTopicArn"
+                }
+            ],
+            "Tags": [],
+            "EnableTerminationProtection": false,
+            "DriftInformation": {
+                "StackDriftStatus": "NOT_CHECKED"
+            },
+            "LastOperations": [
+                {
+                    "OperationType": "CREATE_STACK",
+                    "OperationId": "5f6b9df0-23c3-493b-9bd8-4f0c540eb896"
+                }
+            ]
+        }
+    ]
+}

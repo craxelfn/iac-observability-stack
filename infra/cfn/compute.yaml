@@ -351,6 +351,306 @@ Resources:
             chown -R ec2-user:ec2-user /opt/masterproject
             chown -R ec2-user:ec2-user /var/log/masterproject
             
+            # Create requirements.txt
+            cat > /opt/masterproject/requirements.txt << 'REQEOF'
+            # MasterProject API Dependencies
+            fastapi==0.109.0
+            uvicorn[standard]==0.27.0
+            aws-xray-sdk==2.12.1
+            httpx==0.26.0
+            requests==2.31.0
+            pydantic==2.5.3
+            pydantic-settings==2.1.0
+            python-dotenv==1.0.0
+            REQEOF
+            
+            # Create config.py
+            cat > /opt/masterproject/config.py << 'CONFIGEOF'
+            import os
+            from dataclasses import dataclass
+            
+            @dataclass
+            class Settings:
+                SERVICE_NAME: str = os.getenv("SERVICE_NAME", "masterproject-api")
+                ENVIRONMENT: str = os.getenv("ENVIRONMENT", "dev")
+                DEBUG: bool = os.getenv("DEBUG", "false").lower() == "true"
+                HOST: str = os.getenv("HOST", "0.0.0.0")
+                PORT: int = int(os.getenv("PORT", "8080"))
+                AWS_REGION: str = os.getenv("AWS_REGION", "us-east-2")
+                XRAY_DAEMON_ADDRESS: str = os.getenv("XRAY_DAEMON_ADDRESS", "127.0.0.1:2000")
+                XRAY_TRACING_ENABLED: bool = os.getenv("XRAY_TRACING_ENABLED", "true").lower() == "true"
+                LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
+                LOG_FORMAT: str = os.getenv("LOG_FORMAT", "json")
+            
+            settings = Settings()
+            CONFIGEOF
+            
+            # Create main.py
+            cat > /opt/masterproject/main.py << 'MAINEOF'
+            import json
+            import logging
+            import random
+            import time
+            import uuid
+            from contextlib import asynccontextmanager
+            from datetime import datetime, timezone
+            from typing import Optional
+            
+            from fastapi import FastAPI, Query, Request, Response
+            from fastapi.responses import JSONResponse
+            
+            from config import settings
+            
+            try:
+                from aws_xray_sdk.core import xray_recorder, patch_all
+                from aws_xray_sdk.ext.fastapi.middleware import XRayMiddleware
+                XRAY_ENABLED = True
+                patch_all()
+            except ImportError:
+                XRAY_ENABLED = False
+                xray_recorder = None
+            
+            class JSONFormatter(logging.Formatter):
+                def format(self, record: logging.LogRecord) -> str:
+                    log_entry = {
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                        "level": record.levelname,
+                        "message": record.getMessage(),
+                        "logger": record.name,
+                    }
+                    if hasattr(record, "request_id"):
+                        log_entry["request_id"] = record.request_id
+                    if hasattr(record, "path"):
+                        log_entry["path"] = record.path
+                    if hasattr(record, "method"):
+                        log_entry["method"] = record.method
+                    if hasattr(record, "duration_ms"):
+                        log_entry["duration_ms"] = record.duration_ms
+                    if hasattr(record, "status_code"):
+                        log_entry["status_code"] = record.status_code
+                    if hasattr(record, "client_ip"):
+                        log_entry["client_ip"] = record.client_ip
+                    if record.exc_info:
+                        log_entry["exception"] = self.formatException(record.exc_info)
+                    return json.dumps(log_entry)
+            
+            def setup_logging():
+                logger = logging.getLogger("masterproject")
+                logger.setLevel(logging.INFO)
+                logger.handlers.clear()
+                handler = logging.StreamHandler()
+                handler.setFormatter(JSONFormatter())
+                logger.addHandler(handler)
+                # Also log to file
+                file_handler = logging.FileHandler("/var/log/masterproject/app.log")
+                file_handler.setFormatter(JSONFormatter())
+                logger.addHandler(file_handler)
+                return logger
+            
+            logger = setup_logging()
+            
+            @asynccontextmanager
+            async def lifespan(app: FastAPI):
+                logger.info("Application starting up", extra={"event": "startup"})
+                yield
+                logger.info("Application shutting down", extra={"event": "shutdown"})
+            
+            app = FastAPI(
+                title="MasterProject API",
+                description="Simple REST API with comprehensive observability",
+                version="1.0.0",
+                lifespan=lifespan,
+            )
+            
+            if XRAY_ENABLED:
+                xray_recorder.configure(
+                    service=settings.SERVICE_NAME,
+                    sampling=True,
+                    context_missing='LOG_ERROR',
+                    daemon_address=settings.XRAY_DAEMON_ADDRESS,
+                )
+                app.add_middleware(XRayMiddleware, recorder=xray_recorder)
+                logger.info("X-Ray tracing enabled")
+            else:
+                logger.warning("X-Ray SDK not available, tracing disabled")
+            
+            @app.middleware("http")
+            async def logging_middleware(request: Request, call_next):
+                request_id = str(uuid.uuid4())
+                start_time = time.perf_counter()
+                request.state.request_id = request_id
+                try:
+                    response = await call_next(request)
+                except Exception as e:
+                    duration_ms = (time.perf_counter() - start_time) * 1000
+                    logger.error(
+                        f"Request failed: {str(e)}",
+                        extra={
+                            "request_id": request_id,
+                            "path": request.url.path,
+                            "method": request.method,
+                            "duration_ms": round(duration_ms, 2),
+                            "client_ip": request.client.host if request.client else None,
+                        },
+                        exc_info=True,
+                    )
+                    raise
+                duration_ms = (time.perf_counter() - start_time) * 1000
+                logger.info(
+                    f"{request.method} {request.url.path} - {response.status_code}",
+                    extra={
+                        "request_id": request_id,
+                        "path": request.url.path,
+                        "method": request.method,
+                        "status_code": response.status_code,
+                        "duration_ms": round(duration_ms, 2),
+                        "client_ip": request.client.host if request.client else None,
+                    },
+                )
+                response.headers["X-Request-ID"] = request_id
+                return response
+            
+            @app.get("/health")
+            async def health_check():
+                return {
+                    "status": "healthy",
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "service": settings.SERVICE_NAME,
+                    "version": "1.0.0",
+                }
+            
+            @app.get("/items")
+            async def get_items(
+                request: Request,
+                count: int = Query(default=10, ge=1, le=100, description="Number of items to return"),
+            ):
+                if XRAY_ENABLED and xray_recorder:
+                    subsegment = xray_recorder.begin_subsegment("business_logic")
+                try:
+                    latency_ms = random.randint(50, 200)
+                    time.sleep(latency_ms / 1000)
+                    items = []
+                    for i in range(count):
+                        items.append({
+                            "id": str(uuid.uuid4()),
+                            "name": f"Item {i + 1}",
+                            "description": f"This is a sample item number {i + 1}",
+                            "price": round(random.uniform(10.0, 100.0), 2),
+                            "category": random.choice(["electronics", "clothing", "books", "food"]),
+                            "in_stock": random.choice([True, False]),
+                            "created_at": datetime.now(timezone.utc).isoformat(),
+                        })
+                    if XRAY_ENABLED and xray_recorder and subsegment:
+                        subsegment.put_annotation("item_count", count)
+                        subsegment.put_metadata("simulated_latency_ms", latency_ms)
+                finally:
+                    if XRAY_ENABLED and xray_recorder:
+                        xray_recorder.end_subsegment()
+                return {
+                    "items": items,
+                    "count": len(items),
+                    "request_id": getattr(request.state, "request_id", None),
+                }
+            
+            @app.get("/error")
+            async def trigger_error(request: Request):
+                request_id = getattr(request.state, "request_id", "unknown")
+                logger.error(
+                    "Intentional error triggered for testing",
+                    extra={
+                        "request_id": request_id,
+                        "path": "/error",
+                        "method": "GET",
+                    },
+                )
+                return JSONResponse(
+                    status_code=500,
+                    content={
+                        "error": "Intentional error for testing purposes",
+                        "message": "This endpoint intentionally returns a 500 error",
+                        "request_id": request_id,
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                    },
+                )
+            
+            @app.get("/")
+            async def root():
+                return {
+                    "service": settings.SERVICE_NAME,
+                    "version": "1.0.0",
+                    "endpoints": {
+                        "health": "/health",
+                        "items": "/items?count=10",
+                        "error": "/error",
+                    },
+                    "documentation": "/docs",
+                }
+            
+            @app.exception_handler(Exception)
+            async def global_exception_handler(request: Request, exc: Exception):
+                request_id = getattr(request.state, "request_id", "unknown")
+                logger.error(
+                    f"Unhandled exception: {str(exc)}",
+                    extra={
+                        "request_id": request_id,
+                        "path": request.url.path,
+                        "method": request.method,
+                    },
+                    exc_info=True,
+                )
+                return JSONResponse(
+                    status_code=500,
+                    content={
+                        "error": "Internal server error",
+                        "request_id": request_id,
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                    },
+                )
+            
+            if __name__ == "__main__":
+                import uvicorn
+                uvicorn.run(
+                    "main:app",
+                    host=settings.HOST,
+                    port=settings.PORT,
+                    reload=settings.DEBUG,
+                    log_level="info",
+                )
+            MAINEOF
+            
+            # Set ownership
+            chown -R ec2-user:ec2-user /opt/masterproject
+            
+            # Install Python dependencies
+            pip3 install -r /opt/masterproject/requirements.txt
+            
+            # Create systemd service for the application
+            cat > /etc/systemd/system/masterproject.service << 'SERVICEEOF'
+            [Unit]
+            Description=MasterProject API
+            After=network.target
+            
+            [Service]
+            Type=simple
+            User=ec2-user
+            WorkingDirectory=/opt/masterproject
+            Environment=ENVIRONMENT=dev
+            Environment=AWS_REGION=us-east-2
+            ExecStart=/usr/bin/python3 -m uvicorn main:app --host 0.0.0.0 --port 8080
+            Restart=always
+            RestartSec=5
+            StandardOutput=append:/var/log/masterproject/app.log
+            StandardError=append:/var/log/masterproject/app.log
+            
+            [Install]
+            WantedBy=multi-user.target
+            SERVICEEOF
+            
+            # Enable and start the application service
+            systemctl daemon-reload
+            systemctl enable masterproject
+            systemctl start masterproject
+            
             # Signal completion (for ASG health checks)
             echo "UserData script completed successfully" >> /var/log/masterproject/bootstrap.log
         TagSpecifications:
