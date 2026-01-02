@@ -1,0 +1,463 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: |
+  MasterProject Compute Infrastructure
+  Creates ALB, Target Group, IAM Role, Launch Template, and Auto Scaling Group
+  with full observability agents (CloudWatch, X-Ray, CodeDeploy).
+
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - staging
+      - prod
+    Description: Environment name for resource tagging
+
+  Project:
+    Type: String
+    Default: MasterProject
+    Description: Project name for resource tagging
+
+  NetworkStackName:
+    Type: String
+    Default: mp-network
+    Description: Name of the network stack for cross-stack references
+
+  SecurityStackName:
+    Type: String
+    Default: mp-security
+    Description: Name of the security stack for cross-stack references
+
+  InstanceType:
+    Type: String
+    Default: t3.small
+    AllowedValues:
+      - t3.micro
+      - t3.small
+      - t3.medium
+    Description: EC2 instance type
+
+  MinSize:
+    Type: Number
+    Default: 2
+    Description: Minimum number of instances in ASG
+
+  MaxSize:
+    Type: Number
+    Default: 6
+    Description: Maximum number of instances in ASG
+
+  DesiredCapacity:
+    Type: Number
+    Default: 2
+    Description: Desired number of instances in ASG
+
+  LatestAmiId:
+    Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
+    Default: '/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-6.1-x86_64'
+    Description: Latest Amazon Linux 2023 AMI ID from SSM Parameter Store
+
+Resources:
+  # ============================================================================
+  # Application Load Balancer
+  # ============================================================================
+  ApplicationLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: !Sub '${Project}-${Environment}-alb'
+      Scheme: internet-facing
+      Type: application
+      Subnets:
+        - !ImportValue
+          Fn::Sub: '${NetworkStackName}-PublicSubnet1Id'
+        - !ImportValue
+          Fn::Sub: '${NetworkStackName}-PublicSubnet2Id'
+      SecurityGroups:
+        - !ImportValue
+          Fn::Sub: '${SecurityStackName}-ALBSecurityGroupId'
+      Tags:
+        - Key: Name
+          Value: !Sub '${Project}-${Environment}-alb'
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Project
+          Value: !Ref Project
+
+  # ============================================================================
+  # Target Group
+  # ============================================================================
+  TargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: !Sub '${Project}-${Environment}-tg'
+      Port: 8080
+      Protocol: HTTP
+      VpcId: !ImportValue
+        Fn::Sub: '${NetworkStackName}-VpcId'
+      TargetType: instance
+      HealthCheckEnabled: true
+      HealthCheckPath: /health
+      HealthCheckProtocol: HTTP
+      HealthCheckIntervalSeconds: 30
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 2
+      UnhealthyThresholdCount: 3
+      Matcher:
+        HttpCode: '200'
+      Tags:
+        - Key: Name
+          Value: !Sub '${Project}-${Environment}-tg'
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Project
+          Value: !Ref Project
+
+  # ============================================================================
+  # ALB Listener
+  # ============================================================================
+  ALBListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref ApplicationLoadBalancer
+      Port: 80
+      Protocol: HTTP
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref TargetGroup
+
+  # ============================================================================
+  # IAM Role for EC2
+  # ============================================================================
+  EC2Role:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${Project}-${Environment}-ec2-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: 'sts:AssumeRole'
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+        - arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy
+        - arn:aws:iam::aws:policy/AWSXRayDaemonWriteAccess
+      Policies:
+        - PolicyName: !Sub '${Project}-${Environment}-ec2-policy'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              # CloudWatch Logs
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                  - logs:DescribeLogStreams
+                Resource: !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/masterproject/*'
+              # CloudWatch Metrics
+              - Effect: Allow
+                Action:
+                  - cloudwatch:PutMetricData
+                Resource: '*'
+                Condition:
+                  StringEquals:
+                    cloudwatch:namespace: MasterProject
+              # X-Ray (additional permissions beyond managed policy)
+              - Effect: Allow
+                Action:
+                  - xray:PutTraceSegments
+                  - xray:PutTelemetryRecords
+                  - xray:GetSamplingRules
+                  - xray:GetSamplingTargets
+                  - xray:GetSamplingStatisticSummaries
+                Resource: '*'
+              # S3 read access for CodeDeploy artifacts
+              - Effect: Allow
+                Action:
+                  - s3:Get*
+                  - s3:List*
+                Resource:
+                  - !Sub 'arn:aws:s3:::aws-codedeploy-${AWS::Region}/*'
+                  - !Sub 'arn:aws:s3:::${Project}-${Environment}-artifacts/*'
+              # CodeDeploy agent permissions
+              - Effect: Allow
+                Action:
+                  - codedeploy:*
+                Resource: '*'
+      Tags:
+        - Key: Name
+          Value: !Sub '${Project}-${Environment}-ec2-role'
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Project
+          Value: !Ref Project
+
+  # ============================================================================
+  # Instance Profile
+  # ============================================================================
+  EC2InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      InstanceProfileName: !Sub '${Project}-${Environment}-ec2-profile'
+      Roles:
+        - !Ref EC2Role
+
+  # ============================================================================
+  # Launch Template
+  # ============================================================================
+  LaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      LaunchTemplateName: !Sub '${Project}-${Environment}-lt'
+      LaunchTemplateData:
+        ImageId: !Ref LatestAmiId
+        InstanceType: !Ref InstanceType
+        IamInstanceProfile:
+          Arn: !GetAtt EC2InstanceProfile.Arn
+        SecurityGroupIds:
+          - !ImportValue
+            Fn::Sub: '${SecurityStackName}-EC2SecurityGroupId'
+        BlockDeviceMappings:
+          - DeviceName: /dev/xvda
+            Ebs:
+              VolumeSize: 20
+              VolumeType: gp3
+              Encrypted: true
+              DeleteOnTermination: true
+        MetadataOptions:
+          HttpEndpoint: enabled
+          HttpTokens: required
+          HttpPutResponseHopLimit: 2
+        Monitoring:
+          Enabled: true
+        UserData:
+          Fn::Base64: !Sub |
+            #!/bin/bash
+            set -ex
+            
+            # Update system
+            dnf update -y
+            
+            # Install Python 3.11
+            dnf install -y python3.11 python3.11-pip
+            
+            # Create symlinks
+            alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1
+            alternatives --install /usr/bin/pip3 pip3 /usr/bin/pip3.11 1
+            
+            # Install CloudWatch Agent
+            dnf install -y amazon-cloudwatch-agent
+            
+            # Configure CloudWatch Agent
+            cat > /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json << 'EOF'
+            {
+              "agent": {
+                "metrics_collection_interval": 60,
+                "run_as_user": "root"
+              },
+              "logs": {
+                "logs_collected": {
+                  "files": {
+                    "collect_list": [
+                      {
+                        "file_path": "/var/log/masterproject/app.log",
+                        "log_group_name": "/masterproject/app",
+                        "log_stream_name": "{instance_id}",
+                        "timezone": "UTC"
+                      },
+                      {
+                        "file_path": "/var/log/messages",
+                        "log_group_name": "/masterproject/system",
+                        "log_stream_name": "{instance_id}-messages",
+                        "timezone": "UTC"
+                      }
+                    ]
+                  }
+                }
+              },
+              "metrics": {
+                "namespace": "MasterProject",
+                "metrics_collected": {
+                  "cpu": {
+                    "measurement": ["cpu_usage_idle", "cpu_usage_user", "cpu_usage_system"],
+                    "metrics_collection_interval": 60
+                  },
+                  "mem": {
+                    "measurement": ["mem_used_percent"],
+                    "metrics_collection_interval": 60
+                  },
+                  "disk": {
+                    "measurement": ["disk_used_percent"],
+                    "metrics_collection_interval": 60,
+                    "resources": ["/"]
+                  }
+                },
+                "append_dimensions": {
+                  "InstanceId": "${!aws:InstanceId}",
+                  "AutoScalingGroupName": "${!aws:AutoScalingGroupName}"
+                }
+              }
+            }
+            EOF
+            
+            # Start CloudWatch Agent
+            /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl \
+              -a fetch-config \
+              -m ec2 \
+              -s \
+              -c file:/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json
+            
+            # Install X-Ray Daemon
+            curl -o /tmp/xray-daemon.rpm \
+              https://s3.us-east-2.amazonaws.com/aws-xray-assets.us-east-2/xray-daemon/aws-xray-daemon-3.x.rpm
+            dnf install -y /tmp/xray-daemon.rpm
+            
+            # Configure X-Ray Daemon
+            cat > /etc/amazon/xray/cfg.yaml << 'EOF'
+            Socket:
+              UDPAddress: "127.0.0.1:2000"
+              TCPAddress: "127.0.0.1:2000"
+            Logging:
+              LogLevel: "info"
+              LogPath: "/var/log/xray/xray.log"
+            LocalMode: false
+            ResourceARN: ""
+            RoleARN: ""
+            NoVerifySSL: false
+            ProxyAddress: ""
+            Region: "${AWS::Region}"
+            Version: 2
+            EOF
+            
+            # Start X-Ray Daemon
+            systemctl enable xray
+            systemctl start xray
+            
+            # Install CodeDeploy Agent
+            dnf install -y ruby wget
+            cd /tmp
+            wget https://aws-codedeploy-${AWS::Region}.s3.${AWS::Region}.amazonaws.com/latest/install
+            chmod +x ./install
+            ./install auto
+            systemctl enable codedeploy-agent
+            systemctl start codedeploy-agent
+            
+            # Create application directory
+            mkdir -p /opt/masterproject
+            mkdir -p /var/log/masterproject
+            chown -R ec2-user:ec2-user /opt/masterproject
+            chown -R ec2-user:ec2-user /var/log/masterproject
+            
+            # Signal completion (for ASG health checks)
+            echo "UserData script completed successfully" >> /var/log/masterproject/bootstrap.log
+        TagSpecifications:
+          - ResourceType: instance
+            Tags:
+              - Key: Name
+                Value: !Sub '${Project}-${Environment}-instance'
+              - Key: Environment
+                Value: !Ref Environment
+              - Key: Project
+                Value: !Ref Project
+
+  # ============================================================================
+  # Auto Scaling Group
+  # ============================================================================
+  AutoScalingGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      AutoScalingGroupName: !Sub '${Project}-${Environment}-asg'
+      LaunchTemplate:
+        LaunchTemplateId: !Ref LaunchTemplate
+        Version: !GetAtt LaunchTemplate.LatestVersionNumber
+      MinSize: !Ref MinSize
+      MaxSize: !Ref MaxSize
+      DesiredCapacity: !Ref DesiredCapacity
+      VPCZoneIdentifier:
+        - !ImportValue
+          Fn::Sub: '${NetworkStackName}-PrivateSubnet1Id'
+        - !ImportValue
+          Fn::Sub: '${NetworkStackName}-PrivateSubnet2Id'
+      TargetGroupARNs:
+        - !Ref TargetGroup
+      HealthCheckType: ELB
+      HealthCheckGracePeriod: 300
+      MetricsCollection:
+        - Granularity: 1Minute
+          Metrics:
+            - GroupMinSize
+            - GroupMaxSize
+            - GroupDesiredCapacity
+            - GroupInServiceInstances
+            - GroupTotalInstances
+      Tags:
+        - Key: Name
+          Value: !Sub '${Project}-${Environment}-asg-instance'
+          PropagateAtLaunch: true
+        - Key: Environment
+          Value: !Ref Environment
+          PropagateAtLaunch: true
+        - Key: Project
+          Value: !Ref Project
+          PropagateAtLaunch: true
+
+# ============================================================================
+# Outputs
+# ============================================================================
+Outputs:
+  ALBDnsName:
+    Description: DNS name of the Application Load Balancer
+    Value: !GetAtt ApplicationLoadBalancer.DNSName
+    Export:
+      Name: !Sub '${AWS::StackName}-ALBDnsName'
+
+  ALBArn:
+    Description: ARN of the Application Load Balancer
+    Value: !Ref ApplicationLoadBalancer
+    Export:
+      Name: !Sub '${AWS::StackName}-ALBArn'
+
+  ALBFullName:
+    Description: Full name of the ALB for CloudWatch metrics
+    Value: !GetAtt ApplicationLoadBalancer.LoadBalancerFullName
+    Export:
+      Name: !Sub '${AWS::StackName}-ALBFullName'
+
+  TargetGroupArn:
+    Description: ARN of the Target Group
+    Value: !Ref TargetGroup
+    Export:
+      Name: !Sub '${AWS::StackName}-TargetGroupArn'
+
+  TargetGroupFullName:
+    Description: Full name of the Target Group for CloudWatch metrics
+    Value: !GetAtt TargetGroup.TargetGroupFullName
+    Export:
+      Name: !Sub '${AWS::StackName}-TargetGroupFullName'
+
+  AutoScalingGroupName:
+    Description: Name of the Auto Scaling Group
+    Value: !Ref AutoScalingGroup
+    Export:
+      Name: !Sub '${AWS::StackName}-AutoScalingGroupName'
+
+  EC2RoleArn:
+    Description: ARN of the EC2 IAM Role
+    Value: !GetAtt EC2Role.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-EC2RoleArn'
+
+  LaunchTemplateId:
+    Description: ID of the Launch Template
+    Value: !Ref LaunchTemplate
+    Export:
+      Name: !Sub '${AWS::StackName}-LaunchTemplateId'
+
+  StackName:
+    Description: Stack name for cross-stack references
+    Value: !Ref AWS::StackName
+    Export:
+      Name: !Sub '${AWS::StackName}-StackName'

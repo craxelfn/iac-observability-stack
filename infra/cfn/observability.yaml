@@ -1,0 +1,431 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: |
+  MasterProject Observability Stack
+  Creates CloudWatch Log Groups, Metric Filters, Alarms, SNS Topic, and Dashboard
+  for comprehensive monitoring and alerting.
+
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - staging
+      - prod
+    Description: Environment name for resource tagging
+
+  Project:
+    Type: String
+    Default: MasterProject
+    Description: Project name for resource tagging
+
+  ComputeStackName:
+    Type: String
+    Default: mp-compute
+    Description: Name of the compute stack for cross-stack references
+
+  AlarmEmail:
+    Type: String
+    Default: ''
+    Description: Email address for alarm notifications (optional)
+
+  LogRetentionDays:
+    Type: Number
+    Default: 7
+    AllowedValues: [1, 3, 5, 7, 14, 30, 60, 90, 120, 150, 180, 365]
+    Description: Number of days to retain logs
+
+Conditions:
+  HasAlarmEmail: !Not [!Equals [!Ref AlarmEmail, '']]
+
+Resources:
+  # ============================================================================
+  # Log Groups
+  # ============================================================================
+  AppLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: /masterproject/app
+      RetentionInDays: !Ref LogRetentionDays
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Project
+          Value: !Ref Project
+
+  SystemLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: /masterproject/system
+      RetentionInDays: !Ref LogRetentionDays
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Project
+          Value: !Ref Project
+
+  # ============================================================================
+  # Metric Filters
+  # ============================================================================
+  ErrorCountMetricFilter:
+    Type: AWS::Logs::MetricFilter
+    Properties:
+      LogGroupName: !Ref AppLogGroup
+      FilterName: AppErrorCount
+      FilterPattern: '{ $.level = "ERROR" }'
+      MetricTransformations:
+        - MetricName: ErrorCount
+          MetricNamespace: MasterProject
+          MetricValue: '1'
+          DefaultValue: 0
+          Unit: Count
+
+  LatencyMetricFilter:
+    Type: AWS::Logs::MetricFilter
+    Properties:
+      LogGroupName: !Ref AppLogGroup
+      FilterName: AppLatency
+      FilterPattern: '{ $.duration_ms = * }'
+      MetricTransformations:
+        - MetricName: RequestLatency
+          MetricNamespace: MasterProject
+          MetricValue: $.duration_ms
+          DefaultValue: 0
+          Unit: Milliseconds
+
+  RequestCountMetricFilter:
+    Type: AWS::Logs::MetricFilter
+    Properties:
+      LogGroupName: !Ref AppLogGroup
+      FilterName: AppRequestCount
+      FilterPattern: '{ $.path = * }'
+      MetricTransformations:
+        - MetricName: RequestCount
+          MetricNamespace: MasterProject
+          MetricValue: '1'
+          DefaultValue: 0
+          Unit: Count
+
+  # ============================================================================
+  # SNS Topic for Alarms
+  # ============================================================================
+  AlarmTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub '${Project}-${Environment}-alarms'
+      DisplayName: !Sub '${Project} Alarm Notifications'
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Project
+          Value: !Ref Project
+
+  AlarmTopicPolicy:
+    Type: AWS::SNS::TopicPolicy
+    Properties:
+      Topics:
+        - !Ref AlarmTopic
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AllowCloudWatchAlarms
+            Effect: Allow
+            Principal:
+              Service: cloudwatch.amazonaws.com
+            Action: sns:Publish
+            Resource: !Ref AlarmTopic
+
+  AlarmEmailSubscription:
+    Type: AWS::SNS::Subscription
+    Condition: HasAlarmEmail
+    Properties:
+      TopicArn: !Ref AlarmTopic
+      Protocol: email
+      Endpoint: !Ref AlarmEmail
+
+  # ============================================================================
+  # CloudWatch Alarms
+  # ============================================================================
+  HighErrorRateAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${Project}-${Environment}-HighErrorRate'
+      AlarmDescription: Triggers when error count exceeds 5 in 5 minutes
+      Namespace: MasterProject
+      MetricName: ErrorCount
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 5
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref AlarmTopic
+      OKActions:
+        - !Ref AlarmTopic
+
+  HighP95LatencyAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${Project}-${Environment}-HighP95Latency'
+      AlarmDescription: Triggers when p95 latency exceeds 500ms
+      Namespace: AWS/ApplicationELB
+      MetricName: TargetResponseTime
+      ExtendedStatistic: p95
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 0.5
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      Dimensions:
+        - Name: LoadBalancer
+          Value: !ImportValue
+            Fn::Sub: '${ComputeStackName}-ALBFullName'
+      AlarmActions:
+        - !Ref AlarmTopic
+      OKActions:
+        - !Ref AlarmTopic
+
+  ALB5xxErrorsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${Project}-${Environment}-ALB5xxErrors'
+      AlarmDescription: Triggers when 5xx errors exceed 10 in 5 minutes
+      Namespace: AWS/ApplicationELB
+      MetricName: HTTPCode_Target_5XX_Count
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 10
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      Dimensions:
+        - Name: LoadBalancer
+          Value: !ImportValue
+            Fn::Sub: '${ComputeStackName}-ALBFullName'
+      AlarmActions:
+        - !Ref AlarmTopic
+      OKActions:
+        - !Ref AlarmTopic
+
+  UnhealthyHostsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${Project}-${Environment}-UnhealthyHosts'
+      AlarmDescription: Triggers when unhealthy host count is greater than 0
+      Namespace: AWS/ApplicationELB
+      MetricName: UnHealthyHostCount
+      Statistic: Average
+      Period: 60
+      EvaluationPeriods: 2
+      Threshold: 0
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      Dimensions:
+        - Name: LoadBalancer
+          Value: !ImportValue
+            Fn::Sub: '${ComputeStackName}-ALBFullName'
+        - Name: TargetGroup
+          Value: !ImportValue
+            Fn::Sub: '${ComputeStackName}-TargetGroupFullName'
+      AlarmActions:
+        - !Ref AlarmTopic
+      OKActions:
+        - !Ref AlarmTopic
+
+  # ============================================================================
+  # CloudWatch Dashboard
+  # ============================================================================
+  Dashboard:
+    Type: AWS::CloudWatch::Dashboard
+    Properties:
+      DashboardName: !Sub '${Project}-Dashboard'
+      DashboardBody: !Sub |
+        {
+          "widgets": [
+            {
+              "type": "text",
+              "x": 0,
+              "y": 0,
+              "width": 24,
+              "height": 1,
+              "properties": {
+                "markdown": "# ${Project} Monitoring Dashboard\n**Environment:** ${Environment}"
+              }
+            },
+            {
+              "type": "metric",
+              "x": 0,
+              "y": 1,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "title": "ALB Request Count",
+                "view": "timeSeries",
+                "stacked": false,
+                "metrics": [
+                  ["AWS/ApplicationELB", "RequestCount", "LoadBalancer", "${!ImportValue:${ComputeStackName}-ALBFullName}", {"stat": "Sum", "period": 300}]
+                ],
+                "region": "${AWS::Region}",
+                "yAxis": {"left": {"min": 0}}
+              }
+            },
+            {
+              "type": "metric",
+              "x": 12,
+              "y": 1,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "title": "ALB Response Time (p50, p95, p99)",
+                "view": "timeSeries",
+                "stacked": false,
+                "metrics": [
+                  ["AWS/ApplicationELB", "TargetResponseTime", "LoadBalancer", "${!ImportValue:${ComputeStackName}-ALBFullName}", {"stat": "p50", "period": 300, "label": "p50"}],
+                  ["...", {"stat": "p95", "period": 300, "label": "p95"}],
+                  ["...", {"stat": "p99", "period": 300, "label": "p99"}]
+                ],
+                "region": "${AWS::Region}",
+                "yAxis": {"left": {"min": 0, "label": "Seconds"}}
+              }
+            },
+            {
+              "type": "metric",
+              "x": 0,
+              "y": 7,
+              "width": 8,
+              "height": 6,
+              "properties": {
+                "title": "ALB 4xx Errors",
+                "view": "timeSeries",
+                "stacked": false,
+                "metrics": [
+                  ["AWS/ApplicationELB", "HTTPCode_Target_4XX_Count", "LoadBalancer", "${!ImportValue:${ComputeStackName}-ALBFullName}", {"stat": "Sum", "period": 300, "color": "#ff7f0e"}]
+                ],
+                "region": "${AWS::Region}",
+                "yAxis": {"left": {"min": 0}}
+              }
+            },
+            {
+              "type": "metric",
+              "x": 8,
+              "y": 7,
+              "width": 8,
+              "height": 6,
+              "properties": {
+                "title": "ALB 5xx Errors",
+                "view": "timeSeries",
+                "stacked": false,
+                "metrics": [
+                  ["AWS/ApplicationELB", "HTTPCode_Target_5XX_Count", "LoadBalancer", "${!ImportValue:${ComputeStackName}-ALBFullName}", {"stat": "Sum", "period": 300, "color": "#d62728"}]
+                ],
+                "region": "${AWS::Region}",
+                "yAxis": {"left": {"min": 0}}
+              }
+            },
+            {
+              "type": "metric",
+              "x": 16,
+              "y": 7,
+              "width": 8,
+              "height": 6,
+              "properties": {
+                "title": "Application Error Count",
+                "view": "timeSeries",
+                "stacked": false,
+                "metrics": [
+                  ["MasterProject", "ErrorCount", {"stat": "Sum", "period": 300, "color": "#d62728"}]
+                ],
+                "region": "${AWS::Region}",
+                "yAxis": {"left": {"min": 0}}
+              }
+            },
+            {
+              "type": "metric",
+              "x": 0,
+              "y": 13,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "title": "EC2 CPU Utilization (ASG)",
+                "view": "timeSeries",
+                "stacked": false,
+                "metrics": [
+                  ["AWS/EC2", "CPUUtilization", "AutoScalingGroupName", "${!ImportValue:${ComputeStackName}-AutoScalingGroupName}", {"stat": "Average", "period": 300}]
+                ],
+                "region": "${AWS::Region}",
+                "yAxis": {"left": {"min": 0, "max": 100}}
+              }
+            },
+            {
+              "type": "metric",
+              "x": 12,
+              "y": 13,
+              "width": 6,
+              "height": 6,
+              "properties": {
+                "title": "ASG Instance Count",
+                "view": "singleValue",
+                "metrics": [
+                  ["AWS/AutoScaling", "GroupInServiceInstances", "AutoScalingGroupName", "${!ImportValue:${ComputeStackName}-AutoScalingGroupName}", {"stat": "Average", "period": 300}]
+                ],
+                "region": "${AWS::Region}"
+              }
+            },
+            {
+              "type": "metric",
+              "x": 18,
+              "y": 13,
+              "width": 6,
+              "height": 6,
+              "properties": {
+                "title": "ALB Healthy Hosts",
+                "view": "singleValue",
+                "metrics": [
+                  ["AWS/ApplicationELB", "HealthyHostCount", "LoadBalancer", "${!ImportValue:${ComputeStackName}-ALBFullName}", "TargetGroup", "${!ImportValue:${ComputeStackName}-TargetGroupFullName}", {"stat": "Average", "period": 300}]
+                ],
+                "region": "${AWS::Region}"
+              }
+            }
+          ]
+        }
+
+# ============================================================================
+# Outputs
+# ============================================================================
+Outputs:
+  AppLogGroupName:
+    Description: Application Log Group Name
+    Value: !Ref AppLogGroup
+    Export:
+      Name: !Sub '${AWS::StackName}-AppLogGroupName'
+
+  AppLogGroupArn:
+    Description: Application Log Group ARN
+    Value: !GetAtt AppLogGroup.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-AppLogGroupArn'
+
+  SystemLogGroupName:
+    Description: System Log Group Name
+    Value: !Ref SystemLogGroup
+    Export:
+      Name: !Sub '${AWS::StackName}-SystemLogGroupName'
+
+  AlarmTopicArn:
+    Description: SNS Topic ARN for Alarms
+    Value: !Ref AlarmTopic
+    Export:
+      Name: !Sub '${AWS::StackName}-AlarmTopicArn'
+
+  DashboardName:
+    Description: CloudWatch Dashboard Name
+    Value: !Ref Dashboard
+    Export:
+      Name: !Sub '${AWS::StackName}-DashboardName'
+
+  StackName:
+    Description: Stack name for cross-stack references
+    Value: !Ref AWS::StackName
+    Export:
+      Name: !Sub '${AWS::StackName}-StackName'
