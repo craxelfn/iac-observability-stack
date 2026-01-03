@@ -23,11 +23,14 @@ phases:
       - echo "App directory contents:" && ls -la app/
       - pylint app/main.py app/config.py --exit-zero --output-format=text
       - echo "Running unit tests..."
-      - cd app && pytest tests/ -v --cov=. --cov-report=term-missing || true
+      - (cd app && pytest tests/ -v --cov=. --cov-report=term-missing) || true
+      - echo "Tests completed, current directory:" && pwd
 
   build:
     commands:
       - echo "Building application package..."
+      - echo "Current directory:" && pwd
+      - echo "App contents:" && ls -la app/
       - mkdir -p build
       - cp -r app/* build/
       - cp appspec.yml build/
