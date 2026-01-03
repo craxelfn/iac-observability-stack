@@ -244,6 +244,15 @@ Resources:
             # Install Python 3.11 (do NOT change system python3 - dnf depends on python3.9)
             dnf install -y python3.11 python3.11-pip
             
+            # Install CodeDeploy agent
+            dnf install -y ruby wget
+            cd /tmp
+            wget https://aws-codedeploy-${AWS::Region}.s3.${AWS::Region}.amazonaws.com/latest/install
+            chmod +x ./install
+            ./install auto
+            systemctl enable codedeploy-agent
+            systemctl start codedeploy-agent
+            
             # Install CloudWatch Agent
             dnf install -y amazon-cloudwatch-agent
             
