@@ -241,12 +241,8 @@ Resources:
             # Update system
             dnf update -y
             
-            # Install Python 3.11
+            # Install Python 3.11 (do NOT change system python3 - dnf depends on python3.9)
             dnf install -y python3.11 python3.11-pip
-            
-            # Create symlinks
-            alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1
-            alternatives --install /usr/bin/pip3 pip3 /usr/bin/pip3.11 1
             
             # Install CloudWatch Agent
             dnf install -y amazon-cloudwatch-agent
@@ -621,8 +617,8 @@ Resources:
             # Set ownership
             chown -R ec2-user:ec2-user /opt/masterproject
             
-            # Install Python dependencies
-            pip3 install -r /opt/masterproject/requirements.txt
+            # Install Python dependencies using python3.11 explicitly
+            python3.11 -m pip install -r /opt/masterproject/requirements.txt
             
             # Create systemd service for the application
             cat > /etc/systemd/system/masterproject.service << 'SERVICEEOF'
@@ -636,7 +632,7 @@ Resources:
             WorkingDirectory=/opt/masterproject
             Environment=ENVIRONMENT=dev
             Environment=AWS_REGION=us-east-2
-            ExecStart=/usr/bin/python3 -m uvicorn main:app --host 0.0.0.0 --port 8080
+            ExecStart=/usr/bin/python3.11 -m uvicorn main:app --host 0.0.0.0 --port 8080
             Restart=always
             RestartSec=5
             StandardOutput=append:/var/log/masterproject/app.log
@@ -649,6 +645,11 @@ Resources:
             # Enable and start the application service
             systemctl daemon-reload
             systemctl enable masterproject
+            
+            # Create log file with correct ownership before starting service
+            touch /var/log/masterproject/app.log
+            chown -R ec2-user:ec2-user /var/log/masterproject
+            
             systemctl start masterproject
             
             # Signal completion (for ASG health checks)

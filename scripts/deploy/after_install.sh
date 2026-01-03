@@ -25,7 +25,7 @@ fi
 # Install Python dependencies
 echo "Installing Python dependencies..."
 if [ -f "$APP_DIR/requirements.txt" ]; then
-    pip3 install -r $APP_DIR/requirements.txt --quiet
+    python3.11 -m pip install -r $APP_DIR/requirements.txt --quiet
     echo "Dependencies installed successfully."
 else
     echo "No requirements.txt found, skipping dependency installation."
@@ -45,7 +45,7 @@ Group=ec2-user
 WorkingDirectory=/opt/masterproject
 Environment="PATH=/usr/local/bin:/usr/bin:/bin"
 Environment="PYTHONPATH=/opt/masterproject"
-ExecStart=/usr/bin/python3 -m uvicorn main:app --host 0.0.0.0 --port 8080
+ExecStart=/usr/bin/python3.11 -m uvicorn main:app --host 0.0.0.0 --port 8080
 Restart=always
 RestartSec=3
 

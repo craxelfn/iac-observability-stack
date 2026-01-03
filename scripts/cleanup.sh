@@ -27,22 +27,31 @@ delete_stack() {
 
 # Delete stacks in reverse order
 echo ""
-echo "Step 1/4: Deleting Observability Stack..."
+echo "Step 1/6: Deleting CI/CD Stack (if exists)..."
+delete_stack "mp-cicd" || true
+
+echo ""
+echo "Step 2/6: Deleting Governance Stack..."
+delete_stack "mp-governance" || true
+
+echo ""
+echo "Step 3/6: Deleting Observability Stack..."
 delete_stack "mp-observability" || true
 
 echo ""
-echo "Step 2/4: Deleting Compute Stack..."
+echo "Step 4/6: Deleting Compute Stack..."
 delete_stack "mp-compute" || true
 
 echo ""
-echo "Step 3/4: Deleting Security Stack..."
+echo "Step 5/6: Deleting Security Stack..."
 delete_stack "mp-security" || true
 
 echo ""
-echo "Step 4/4: Deleting Network Stack..."
+echo "Step 6/6: Deleting Network Stack..."
 delete_stack "mp-network" || true
 
 echo ""
 echo "=========================================="
 echo "Cleanup Complete!"
 echo "=========================================="
+

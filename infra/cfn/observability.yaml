@@ -41,11 +41,13 @@ Conditions:
 Resources:
   # ============================================================================
   # Log Groups
+  # Note: Using different names than EC2 CloudWatch Agent to avoid conflicts
+  # The /masterproject/app and /masterproject/system are created by EC2 agent
   # ============================================================================
   AppLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: /masterproject/app
+      LogGroupName: !Sub '/aws/${Project}/${Environment}/app'
       RetentionInDays: !Ref LogRetentionDays
       Tags:
         - Key: Environment
@@ -56,7 +58,7 @@ Resources:
   SystemLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: /masterproject/system
+      LogGroupName: !Sub '/aws/${Project}/${Environment}/system'
       RetentionInDays: !Ref LogRetentionDays
       Tags:
         - Key: Environment

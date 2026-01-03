@@ -1,0 +1,1 @@
+{"commands":["systemctl status masterproject","ss -tlnp","curl -s http://localhost:8080/health"]}
