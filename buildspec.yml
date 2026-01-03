@@ -10,13 +10,18 @@ phases:
       python: 3.11
     commands:
       - echo "Installing dependencies..."
-      - cd app && pip install -r requirements.txt
+      - echo "Current directory:" && pwd
+      - echo "Directory contents:" && ls -la
+      - echo "App directory contents:" && ls -la app/ || echo "No app folder!"
+      - pip install -r app/requirements.txt
       - pip install pytest pytest-cov pytest-asyncio httpx pylint
 
   pre_build:
     commands:
       - echo "Running linting..."
-      - cd app && pylint main.py config.py --exit-zero --output-format=text
+      - echo "Current directory:" && pwd
+      - echo "App directory contents:" && ls -la app/
+      - pylint app/main.py app/config.py --exit-zero --output-format=text
       - echo "Running unit tests..."
       - cd app && pytest tests/ -v --cov=. --cov-report=term-missing || true
 
@@ -26,7 +31,8 @@ phases:
       - mkdir -p build
       - cp -r app/* build/
       - cp appspec.yml build/
-      - cp -r scripts/deploy build/scripts/
+      - mkdir -p build/scripts
+      - cp -r scripts/deploy/* build/scripts/
       - echo "Build completed on $(date)"
 
   post_build:
@@ -51,3 +57,4 @@ reports:
     files:
       - 'app/test-results.xml'
     file-format: JUNITXML
+
