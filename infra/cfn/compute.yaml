@@ -181,7 +181,8 @@ Resources:
                   - s3:List*
                 Resource:
                   - !Sub 'arn:aws:s3:::aws-codedeploy-${AWS::Region}/*'
-                  - !Sub 'arn:aws:s3:::${Project}-${Environment}-artifacts/*'
+                  - !Sub 'arn:aws:s3:::mp-${Environment}-pipeline-artifacts-${AWS::AccountId}/*'
+                  - !Sub 'arn:aws:s3:::mp-${Environment}-pipeline-artifacts-${AWS::AccountId}'
               # CodeDeploy agent permissions
               - Effect: Allow
                 Action:
