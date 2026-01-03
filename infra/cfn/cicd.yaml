@@ -52,7 +52,7 @@ Resources:
   ArtifactBucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: !Sub '${Project}-${Environment}-pipeline-artifacts-${AWS::AccountId}'
+      BucketName: !Sub 'mp-${Environment}-pipeline-artifacts-${AWS::AccountId}'
       VersioningConfiguration:
         Status: Enabled
       BucketEncryption:
