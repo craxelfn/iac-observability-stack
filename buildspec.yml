@@ -1,0 +1,53 @@
+version: 0.2
+
+env:
+  variables:
+    PYTHONPATH: "./app"
+
+phases:
+  install:
+    runtime-versions:
+      python: 3.11
+    commands:
+      - echo "Installing dependencies..."
+      - cd app && pip install -r requirements.txt
+      - pip install pytest pytest-cov pytest-asyncio httpx pylint
+
+  pre_build:
+    commands:
+      - echo "Running linting..."
+      - cd app && pylint main.py config.py --exit-zero --output-format=text
+      - echo "Running unit tests..."
+      - cd app && pytest tests/ -v --cov=. --cov-report=term-missing || true
+
+  build:
+    commands:
+      - echo "Building application package..."
+      - mkdir -p build
+      - cp -r app/* build/
+      - cp appspec.yml build/
+      - cp -r scripts/deploy build/scripts/
+      - echo "Build completed on $(date)"
+
+  post_build:
+    commands:
+      - echo "Post-build validation..."
+      - ls -la build/
+      - echo "Build artifacts ready for deployment"
+
+artifacts:
+  files:
+    - '**/*'
+  base-directory: build
+  name: app-build-$(date +%Y%m%d-%H%M%S)
+  discard-paths: no
+
+cache:
+  paths:
+    - '/root/.cache/pip/**/*'
+
+reports:
+  pytest_reports:
+    files:
+      - 'app/test-results.xml'
+    file-format: JUNITXML

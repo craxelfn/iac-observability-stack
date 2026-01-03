@@ -1,0 +1,98 @@
+{
+    "Stacks": [
+        {
+            "StackId": "arn:aws:cloudformation:us-east-2:956484174137:stack/mp-governance/b891e470-e8bc-11f0-9ebb-026eb99f1215",
+            "StackName": "mp-governance",
+            "ChangeSetId": "arn:aws:cloudformation:us-east-2:956484174137:changeSet/awscli-cloudformation-package-deploy-1767455768/53ff86bb-60c5-4a8b-a0db-4f72463ac8ea",
+            "Description": "MasterProject Governance Infrastructure\nCreates CloudTrail for audit logging and AWS Config for compliance monitoring.\n",
+            "Parameters": [
+                {
+                    "ParameterKey": "Project",
+                    "ParameterValue": "MasterProject"
+                },
+                {
+                    "ParameterKey": "CloudTrailLogRetentionDays",
+                    "ParameterValue": "90"
+                },
+                {
+                    "ParameterKey": "ConfigDeliveryFrequency",
+                    "ParameterValue": "TwentyFour_Hours"
+                },
+                {
+                    "ParameterKey": "Environment",
+                    "ParameterValue": "dev"
+                }
+            ],
+            "CreationTime": "2026-01-03T15:56:09.730000+00:00",
+            "LastUpdatedTime": "2026-01-03T15:56:15.517000+00:00",
+            "RollbackConfiguration": {},
+            "StackStatus": "CREATE_COMPLETE",
+            "DisableRollback": false,
+            "NotificationARNs": [],
+            "Capabilities": [
+                "CAPABILITY_NAMED_IAM"
+            ],
+            "Outputs": [
+                {
+                    "OutputKey": "CloudTrailBucketName",
+                    "OutputValue": "mp-cloudtrail-logs-956484174137-us-east-2",
+                    "Description": "CloudTrail S3 Bucket Name",
+                    "ExportName": "mp-governance-CloudTrailBucket"
+                },
+                {
+                    "OutputKey": "CloudTrailBucketArn",
+                    "OutputValue": "arn:aws:s3:::mp-cloudtrail-logs-956484174137-us-east-2",
+                    "Description": "CloudTrail S3 Bucket ARN",
+                    "ExportName": "mp-governance-CloudTrailBucketArn"
+                },
+                {
+                    "OutputKey": "CloudTrailArn",
+                    "OutputValue": "arn:aws:cloudtrail:us-east-2:956484174137:trail/MasterProjectTrail",
+                    "Description": "CloudTrail Trail ARN",
+                    "ExportName": "mp-governance-CloudTrailArn"
+                },
+                {
+                    "OutputKey": "CloudTrailLogGroupName",
+                    "OutputValue": "/aws/cloudtrail/masterproject",
+                    "Description": "CloudTrail CloudWatch Log Group Name",
+                    "ExportName": "mp-governance-CloudTrailLogGroup"
+                },
+                {
+                    "OutputKey": "ConfigRoleArn",
+                    "OutputValue": "arn:aws:iam::956484174137:role/MasterProject-dev-config-role",
+                    "Description": "AWS Config IAM Role ARN",
+                    "ExportName": "mp-governance-ConfigRoleArn"
+                },
+                {
+                    "OutputKey": "ConfigBucketArn",
+                    "OutputValue": "arn:aws:s3:::mp-config-956484174137-us-east-2",
+                    "Description": "AWS Config S3 Bucket ARN",
+                    "ExportName": "mp-governance-ConfigBucketArn"
+                },
+                {
+                    "OutputKey": "StackName",
+                    "OutputValue": "mp-governance",
+                    "Description": "Stack name for cross-stack references",
+                    "ExportName": "mp-governance-StackName"
+                },
+                {
+                    "OutputKey": "ConfigBucketName",
+                    "OutputValue": "mp-config-956484174137-us-east-2",
+                    "Description": "AWS Config S3 Bucket Name",
+                    "ExportName": "mp-governance-ConfigBucket"
+                }
+            ],
+            "Tags": [],
+            "EnableTerminationProtection": false,
+            "DriftInformation": {
+                "StackDriftStatus": "NOT_CHECKED"
+            },
+            "LastOperations": [
+                {
+                    "OperationType": "CREATE_STACK",
+                    "OperationId": "0e00b32d-bec2-4584-925a-bf63a307b2a6"
+                }
+            ]
+        }
+    ]
+}

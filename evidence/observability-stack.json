@@ -1,9 +1,9 @@
 {
     "Stacks": [
         {
-            "StackId": "arn:aws:cloudformation:us-east-2:956484174137:stack/mp-observability/e8c1f2e0-e775-11f0-943b-069474327aef",
+            "StackId": "arn:aws:cloudformation:us-east-2:956484174137:stack/mp-observability/a0d64ce0-e8bc-11f0-8ce1-06f1400f2db9",
             "StackName": "mp-observability",
-            "ChangeSetId": "arn:aws:cloudformation:us-east-2:956484174137:changeSet/awscli-cloudformation-package-deploy-1767315404/2331fc60-8e32-41cb-aae2-45a7084b45ce",
+            "ChangeSetId": "arn:aws:cloudformation:us-east-2:956484174137:changeSet/awscli-cloudformation-package-deploy-1767455729/5f4e04a8-032d-48cd-ab56-d2a24020f84f",
             "Description": "MasterProject Observability Stack\nCreates CloudWatch Log Groups, Metric Filters, Alarms, SNS Topic, and Dashboard\nfor comprehensive monitoring and alerting.\n",
             "Parameters": [
                 {
@@ -27,8 +27,8 @@
                     "ParameterValue": "7"
                 }
             ],
-            "CreationTime": "2026-01-02T00:56:45.151000+00:00",
-            "LastUpdatedTime": "2026-01-02T00:56:51.045000+00:00",
+            "CreationTime": "2026-01-03T15:55:29.911000+00:00",
+            "LastUpdatedTime": "2026-01-03T15:55:35.643000+00:00",
             "RollbackConfiguration": {},
             "StackStatus": "CREATE_COMPLETE",
             "DisableRollback": false,
@@ -82,7 +82,7 @@
             "LastOperations": [
                 {
                     "OperationType": "CREATE_STACK",
-                    "OperationId": "5f6b9df0-23c3-493b-9bd8-4f0c540eb896"
+                    "OperationId": "a641f73e-756b-4301-926f-5d02b76ea951"
                 }
             ]
         }

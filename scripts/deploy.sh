@@ -46,28 +46,33 @@ wait_for_stack() {
 
 # Deploy stacks in order
 echo ""
-echo "Step 1/4: Deploying Network Stack..."
+echo "Step 1/5: Deploying Network Stack..."
 deploy_stack "mp-network" "$PROJECT_ROOT/infra/cfn/network.yaml" ""
 wait_for_stack "mp-network"
 
 echo ""
-echo "Step 2/4: Deploying Security Stack..."
+echo "Step 2/5: Deploying Security Stack..."
 deploy_stack "mp-security" "$PROJECT_ROOT/infra/cfn/security.yaml" ""
 wait_for_stack "mp-security"
 
 echo ""
-echo "Step 3/4: Deploying Compute Stack..."
+echo "Step 3/5: Deploying Compute Stack..."
 deploy_stack "mp-compute" "$PROJECT_ROOT/infra/cfn/compute.yaml" ""
 wait_for_stack "mp-compute"
 
 echo ""
-echo "Step 4/4: Deploying Observability Stack..."
+echo "Step 4/5: Deploying Observability Stack..."
 if [ -n "$ALARM_EMAIL" ]; then
     deploy_stack "mp-observability" "$PROJECT_ROOT/infra/cfn/observability.yaml" "AlarmEmail=$ALARM_EMAIL"
 else
     deploy_stack "mp-observability" "$PROJECT_ROOT/infra/cfn/observability.yaml" ""
 fi
 wait_for_stack "mp-observability"
+
+echo ""
+echo "Step 5/5: Deploying Governance Stack..."
+deploy_stack "mp-governance" "$PROJECT_ROOT/infra/cfn/governance.yaml" ""
+wait_for_stack "mp-governance"
 
 # Save evidence
 echo ""
@@ -77,6 +82,7 @@ aws cloudformation describe-stacks --stack-name mp-network > "$PROJECT_ROOT/evid
 aws cloudformation describe-stacks --stack-name mp-security > "$PROJECT_ROOT/evidence/security-stack.json"
 aws cloudformation describe-stacks --stack-name mp-compute > "$PROJECT_ROOT/evidence/compute-stack.json"
 aws cloudformation describe-stacks --stack-name mp-observability > "$PROJECT_ROOT/evidence/observability-stack.json"
+aws cloudformation describe-stacks --stack-name mp-governance > "$PROJECT_ROOT/evidence/governance-stack.json"
 
 # Get ALB DNS
 ALB_DNS=$(aws cloudformation describe-stacks --stack-name mp-compute \
@@ -97,3 +103,22 @@ echo ""
 echo "CloudWatch Dashboard:"
 echo "  https://console.aws.amazon.com/cloudwatch/home#dashboards:name=MasterProject-Dashboard"
 echo ""
+echo "=========================================="
+echo "CI/CD Stack (Optional - requires GitHub setup)"
+echo "=========================================="
+echo ""
+echo "To deploy the CI/CD pipeline, you need:"
+echo "  1. A CodeStar connection to GitHub (create in AWS Console)"
+echo "  2. Your GitHub repository details"
+echo ""
+echo "Then run:"
+echo "  aws cloudformation deploy \\"
+echo "    --template-file infra/cfn/cicd.yaml \\"
+echo "    --stack-name mp-cicd \\"
+echo "    --capabilities CAPABILITY_NAMED_IAM \\"
+echo "    --parameter-overrides \\"
+echo "      GitHubOwner=YOUR_GITHUB_USERNAME \\"
+echo "      GitHubRepo=YOUR_REPO_NAME \\"
+echo "      CodeStarConnectionArn=YOUR_CODESTAR_CONNECTION_ARN"
+echo ""
+

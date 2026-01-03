@@ -1,9 +1,9 @@
 {
     "Stacks": [
         {
-            "StackId": "arn:aws:cloudformation:us-east-2:956484174137:stack/mp-compute/751e1120-e775-11f0-9700-064b1b71a08f",
+            "StackId": "arn:aws:cloudformation:us-east-2:956484174137:stack/mp-compute/1abc5050-e8bc-11f0-a19f-0a084fdc5cfd",
             "StackName": "mp-compute",
-            "ChangeSetId": "arn:aws:cloudformation:us-east-2:956484174137:changeSet/awscli-cloudformation-package-deploy-1767315210/ad729699-beee-4d91-add7-78126943fb46",
+            "ChangeSetId": "arn:aws:cloudformation:us-east-2:956484174137:changeSet/awscli-cloudformation-package-deploy-1767455504/c037d329-3921-4b81-8f43-a515d2a1c9eb",
             "Description": "MasterProject Compute Infrastructure\nCreates ALB, Target Group, IAM Role, Launch Template, and Auto Scaling Group\nwith full observability agents (CloudWatch, X-Ray, CodeDeploy).\n",
             "Parameters": [
                 {
@@ -44,8 +44,8 @@
                     "ParameterValue": "6"
                 }
             ],
-            "CreationTime": "2026-01-02T00:53:31.197000+00:00",
-            "LastUpdatedTime": "2026-01-02T00:53:37.171000+00:00",
+            "CreationTime": "2026-01-03T15:51:45.005000+00:00",
+            "LastUpdatedTime": "2026-01-03T15:51:50.951000+00:00",
             "RollbackConfiguration": {},
             "StackStatus": "CREATE_COMPLETE",
             "DisableRollback": false,
@@ -56,25 +56,31 @@
             "Outputs": [
                 {
                     "OutputKey": "ALBFullName",
-                    "OutputValue": "app/MasterProject-dev-alb/aabbfc6c5b03f9d9",
+                    "OutputValue": "app/MasterProject-dev-alb/2acf172606ed91da",
                     "Description": "Full name of the ALB for CloudWatch metrics",
                     "ExportName": "mp-compute-ALBFullName"
                 },
                 {
                     "OutputKey": "TargetGroupArn",
-                    "OutputValue": "arn:aws:elasticloadbalancing:us-east-2:956484174137:targetgroup/MasterProject-dev-tg/bab4464b6b00a708",
+                    "OutputValue": "arn:aws:elasticloadbalancing:us-east-2:956484174137:targetgroup/MasterProject-dev-tg/a7ded79bb1f6b988",
                     "Description": "ARN of the Target Group",
                     "ExportName": "mp-compute-TargetGroupArn"
                 },
                 {
+                    "OutputKey": "ASGName",
+                    "OutputValue": "MasterProject-dev-asg",
+                    "Description": "ASG Name for CodeDeploy",
+                    "ExportName": "mp-compute-ASGName"
+                },
+                {
                     "OutputKey": "TargetGroupFullName",
-                    "OutputValue": "targetgroup/MasterProject-dev-tg/bab4464b6b00a708",
+                    "OutputValue": "targetgroup/MasterProject-dev-tg/a7ded79bb1f6b988",
                     "Description": "Full name of the Target Group for CloudWatch metrics",
                     "ExportName": "mp-compute-TargetGroupFullName"
                 },
                 {
                     "OutputKey": "ALBDnsName",
-                    "OutputValue": "MasterProject-dev-alb-1237499023.us-east-2.elb.amazonaws.com",
+                    "OutputValue": "MasterProject-dev-alb-1862082927.us-east-2.elb.amazonaws.com",
                     "Description": "DNS name of the Application Load Balancer",
                     "ExportName": "mp-compute-ALBDnsName"
                 },
@@ -92,15 +98,21 @@
                 },
                 {
                     "OutputKey": "LaunchTemplateId",
-                    "OutputValue": "lt-082de4dadbd02401f",
+                    "OutputValue": "lt-06b9c35014bccc1bd",
                     "Description": "ID of the Launch Template",
                     "ExportName": "mp-compute-LaunchTemplateId"
                 },
                 {
                     "OutputKey": "ALBArn",
-                    "OutputValue": "arn:aws:elasticloadbalancing:us-east-2:956484174137:loadbalancer/app/MasterProject-dev-alb/aabbfc6c5b03f9d9",
+                    "OutputValue": "arn:aws:elasticloadbalancing:us-east-2:956484174137:loadbalancer/app/MasterProject-dev-alb/2acf172606ed91da",
                     "Description": "ARN of the Application Load Balancer",
                     "ExportName": "mp-compute-ALBArn"
+                },
+                {
+                    "OutputKey": "TargetGroupName",
+                    "OutputValue": "MasterProject-dev-tg",
+                    "Description": "Target Group Name for CodeDeploy",
+                    "ExportName": "mp-compute-TargetGroupName"
                 },
                 {
                     "OutputKey": "StackName",
@@ -117,7 +129,7 @@
             "LastOperations": [
                 {
                     "OperationType": "CREATE_STACK",
-                    "OperationId": "0e144ce8-9192-4abd-83a7-646506cbf58a"
+                    "OperationId": "e1b26ac1-7f37-4185-9f1b-e4a106de65e9"
                 }
             ]
         }

@@ -744,6 +744,18 @@ Outputs:
     Export:
       Name: !Sub '${AWS::StackName}-AutoScalingGroupName'
 
+  ASGName:
+    Description: ASG Name for CodeDeploy
+    Value: !Sub '${Project}-${Environment}-asg'
+    Export:
+      Name: !Sub '${AWS::StackName}-ASGName'
+
+  TargetGroupName:
+    Description: Target Group Name for CodeDeploy
+    Value: !Sub '${Project}-${Environment}-tg'
+    Export:
+      Name: !Sub '${AWS::StackName}-TargetGroupName'
+
   EC2RoleArn:
     Description: ARN of the EC2 IAM Role
     Value: !GetAtt EC2Role.Arn
