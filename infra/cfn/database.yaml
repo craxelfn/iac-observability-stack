@@ -166,7 +166,7 @@ Resources:
       DBInstanceIdentifier: !Sub '${Project}-${Environment}-db'
       DBName: !Ref DBName
       Engine: postgres
-      EngineVersion: '15.5'
+      EngineVersion: '15.8'  # Using available version
       DBInstanceClass: !Ref DBInstanceClass
       
       # Storage configuration
