@@ -34,8 +34,8 @@ phases:
       - mkdir -p build
       - cp -r app/* build/
       - cp appspec.yml build/
-      - mkdir -p build/scripts
-      - cp -r scripts/deploy/* build/scripts/
+      - mkdir -p build/scripts/deploy
+      - cp -r scripts/deploy/* build/scripts/deploy/
       - echo "Build completed on $(date)"
 
   post_build:
