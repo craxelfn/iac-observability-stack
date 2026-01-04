@@ -75,7 +75,6 @@ Resources:
   DBSubnetGroup:
     Type: AWS::RDS::DBSubnetGroup
     Properties:
-      DBSubnetGroupName: !Sub '${Project}-${Environment}-db-subnet-group'
       DBSubnetGroupDescription: Subnet group for RDS database
       SubnetIds:
         - !ImportValue
@@ -111,7 +110,7 @@ Resources:
         # Query logging for performance analysis
         log_statement: 'mod'  # Log all DDL and DML statements
         log_min_duration_statement: '1000'  # Log queries taking > 1 second
-        log_line_prefix: '%t [%p]: [%l-1] user=%u,db=%d,app=%a,client=%h '
+        log_line_prefix: '%t:%r:%u@%d:[%p]:'  # Use RDS-allowed format
         
         # Performance tuning
         random_page_cost: '1.1'  # Optimized for SSD
@@ -119,7 +118,7 @@ Resources:
         
         # Checkpoint tuning
         checkpoint_completion_target: '0.9'
-        wal_buffers: '16MB'
+        wal_buffers: '16384'  # 16MB in KB
         
         # Parallelism
         max_worker_processes: '4'
@@ -138,7 +137,6 @@ Resources:
   RDSSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupName: !Sub '${Project}-${Environment}-rds-sg'
       GroupDescription: Security group for RDS PostgreSQL database
       VpcId: !ImportValue
         Fn::Sub: '${NetworkStackName}-VpcId'
