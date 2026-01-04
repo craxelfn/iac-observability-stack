@@ -1,9 +1,9 @@
 {
     "Stacks": [
         {
-            "StackId": "arn:aws:cloudformation:us-east-2:956484174137:stack/mp-compute/1abc5050-e8bc-11f0-a19f-0a084fdc5cfd",
+            "StackId": "arn:aws:cloudformation:us-east-2:956484174137:stack/mp-compute/3a31a970-e93f-11f0-91c3-021be04976af",
             "StackName": "mp-compute",
-            "ChangeSetId": "arn:aws:cloudformation:us-east-2:956484174137:changeSet/awscli-cloudformation-package-deploy-1767455504/c037d329-3921-4b81-8f43-a515d2a1c9eb",
+            "ChangeSetId": "arn:aws:cloudformation:us-east-2:956484174137:changeSet/awscli-cloudformation-package-deploy-1767511820/3ceb740a-bfd0-4789-9e12-facf848af846",
             "Description": "MasterProject Compute Infrastructure\nCreates ALB, Target Group, IAM Role, Launch Template, and Auto Scaling Group\nwith full observability agents (CloudWatch, X-Ray, CodeDeploy).\n",
             "Parameters": [
                 {
@@ -44,8 +44,8 @@
                     "ParameterValue": "6"
                 }
             ],
-            "CreationTime": "2026-01-03T15:51:45.005000+00:00",
-            "LastUpdatedTime": "2026-01-03T15:51:50.951000+00:00",
+            "CreationTime": "2026-01-04T07:30:21.888000+00:00",
+            "LastUpdatedTime": "2026-01-04T07:30:27.620000+00:00",
             "RollbackConfiguration": {},
             "StackStatus": "CREATE_COMPLETE",
             "DisableRollback": false,
@@ -56,13 +56,13 @@
             "Outputs": [
                 {
                     "OutputKey": "ALBFullName",
-                    "OutputValue": "app/MasterProject-dev-alb/2acf172606ed91da",
+                    "OutputValue": "app/MasterProject-dev-alb/f4a21e68dca633a0",
                     "Description": "Full name of the ALB for CloudWatch metrics",
                     "ExportName": "mp-compute-ALBFullName"
                 },
                 {
                     "OutputKey": "TargetGroupArn",
-                    "OutputValue": "arn:aws:elasticloadbalancing:us-east-2:956484174137:targetgroup/MasterProject-dev-tg/a7ded79bb1f6b988",
+                    "OutputValue": "arn:aws:elasticloadbalancing:us-east-2:956484174137:targetgroup/MasterProject-dev-tg/c3795ff2afe57ac4",
                     "Description": "ARN of the Target Group",
                     "ExportName": "mp-compute-TargetGroupArn"
                 },
@@ -74,13 +74,13 @@
                 },
                 {
                     "OutputKey": "TargetGroupFullName",
-                    "OutputValue": "targetgroup/MasterProject-dev-tg/a7ded79bb1f6b988",
+                    "OutputValue": "targetgroup/MasterProject-dev-tg/c3795ff2afe57ac4",
                     "Description": "Full name of the Target Group for CloudWatch metrics",
                     "ExportName": "mp-compute-TargetGroupFullName"
                 },
                 {
                     "OutputKey": "ALBDnsName",
-                    "OutputValue": "MasterProject-dev-alb-1862082927.us-east-2.elb.amazonaws.com",
+                    "OutputValue": "MasterProject-dev-alb-1356564119.us-east-2.elb.amazonaws.com",
                     "Description": "DNS name of the Application Load Balancer",
                     "ExportName": "mp-compute-ALBDnsName"
                 },
@@ -98,13 +98,13 @@
                 },
                 {
                     "OutputKey": "LaunchTemplateId",
-                    "OutputValue": "lt-06b9c35014bccc1bd",
+                    "OutputValue": "lt-09ebccace294bd369",
                     "Description": "ID of the Launch Template",
                     "ExportName": "mp-compute-LaunchTemplateId"
                 },
                 {
                     "OutputKey": "ALBArn",
-                    "OutputValue": "arn:aws:elasticloadbalancing:us-east-2:956484174137:loadbalancer/app/MasterProject-dev-alb/2acf172606ed91da",
+                    "OutputValue": "arn:aws:elasticloadbalancing:us-east-2:956484174137:loadbalancer/app/MasterProject-dev-alb/f4a21e68dca633a0",
                     "Description": "ARN of the Application Load Balancer",
                     "ExportName": "mp-compute-ALBArn"
                 },
@@ -129,7 +129,7 @@
             "LastOperations": [
                 {
                     "OperationType": "CREATE_STACK",
-                    "OperationId": "e1b26ac1-7f37-4185-9f1b-e4a106de65e9"
+                    "OperationId": "c1e2e3cd-e1be-46c2-8e39-ef520d87745b"
                 }
             ]
         }

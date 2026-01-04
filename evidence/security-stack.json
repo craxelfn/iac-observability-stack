@@ -1,9 +1,9 @@
 {
     "Stacks": [
         {
-            "StackId": "arn:aws:cloudformation:us-east-2:956484174137:stack/mp-security/02a74e20-e8bc-11f0-9a9a-027c25c01a37",
+            "StackId": "arn:aws:cloudformation:us-east-2:956484174137:stack/mp-security/10ac1590-e93f-11f0-a029-0633fc1fbbaf",
             "StackName": "mp-security",
-            "ChangeSetId": "arn:aws:cloudformation:us-east-2:956484174137:changeSet/awscli-cloudformation-package-deploy-1767455463/714e9fda-6125-4309-b32c-3b4dc5e6747a",
+            "ChangeSetId": "arn:aws:cloudformation:us-east-2:956484174137:changeSet/awscli-cloudformation-package-deploy-1767511751/5f661a73-2701-4005-98f6-5602bb065788",
             "Description": "MasterProject Security Groups\nDefines security groups for ALB, EC2, RDS, and Redis with proper \ningress/egress rules following least-privilege principles.\n",
             "Parameters": [
                 {
@@ -19,8 +19,8 @@
                     "ParameterValue": "dev"
                 }
             ],
-            "CreationTime": "2026-01-03T15:51:04.518000+00:00",
-            "LastUpdatedTime": "2026-01-03T15:51:10.254000+00:00",
+            "CreationTime": "2026-01-04T07:29:12.112000+00:00",
+            "LastUpdatedTime": "2026-01-04T07:29:17.777000+00:00",
             "RollbackConfiguration": {},
             "StackStatus": "CREATE_COMPLETE",
             "DisableRollback": false,
@@ -31,25 +31,25 @@
             "Outputs": [
                 {
                     "OutputKey": "ALBSecurityGroupId",
-                    "OutputValue": "sg-07b5d42bb51a25987",
+                    "OutputValue": "sg-0e1032aab9c0c59c5",
                     "Description": "ALB Security Group ID",
                     "ExportName": "mp-security-ALBSecurityGroupId"
                 },
                 {
                     "OutputKey": "RedisSecurityGroupId",
-                    "OutputValue": "sg-00a72115863cbb578",
+                    "OutputValue": "sg-0161eafa754b54d9d",
                     "Description": "Redis Security Group ID",
                     "ExportName": "mp-security-RedisSecurityGroupId"
                 },
                 {
                     "OutputKey": "EC2SecurityGroupId",
-                    "OutputValue": "sg-0972df72bba4bdd4d",
+                    "OutputValue": "sg-0bc427f836a250fb1",
                     "Description": "EC2 Security Group ID",
                     "ExportName": "mp-security-EC2SecurityGroupId"
                 },
                 {
                     "OutputKey": "RDSSecurityGroupId",
-                    "OutputValue": "sg-05d1522a1d0f02cba",
+                    "OutputValue": "sg-0ff834a487ca0f25f",
                     "Description": "RDS Security Group ID",
                     "ExportName": "mp-security-RDSSecurityGroupId"
                 },
@@ -68,7 +68,7 @@
             "LastOperations": [
                 {
                     "OperationType": "CREATE_STACK",
-                    "OperationId": "d958244b-e5d1-43ac-9842-3a7676b5c1d8"
+                    "OperationId": "48f3299b-2a9d-487f-9972-8f3701ae04e7"
                 }
             ]
         }

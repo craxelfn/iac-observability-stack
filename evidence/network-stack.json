@@ -1,9 +1,9 @@
 {
     "Stacks": [
         {
-            "StackId": "arn:aws:cloudformation:us-east-2:956484174137:stack/mp-network/89283f50-e8bb-11f0-b394-066680f59f99",
+            "StackId": "arn:aws:cloudformation:us-east-2:956484174137:stack/mp-network/b174a060-e93e-11f0-b212-0678ca5b1673",
             "StackName": "mp-network",
-            "ChangeSetId": "arn:aws:cloudformation:us-east-2:956484174137:changeSet/awscli-cloudformation-package-deploy-1767455300/73bb5b2e-b75a-47a4-9949-21397a03697e",
+            "ChangeSetId": "arn:aws:cloudformation:us-east-2:956484174137:changeSet/awscli-cloudformation-package-deploy-1767511591/14edb6c5-27a4-4851-aea6-15de6670952a",
             "Description": "MasterProject Network Infrastructure\nCreates VPC with public/private subnets, Internet Gateway, and NAT Gateway\nfor a highly available, multi-AZ architecture.\n",
             "Parameters": [
                 {
@@ -19,8 +19,8 @@
                     "ParameterValue": "dev"
                 }
             ],
-            "CreationTime": "2026-01-03T15:47:40.690000+00:00",
-            "LastUpdatedTime": "2026-01-03T15:48:27.252000+00:00",
+            "CreationTime": "2026-01-04T07:26:32.369000+00:00",
+            "LastUpdatedTime": "2026-01-04T07:26:38.043000+00:00",
             "RollbackConfiguration": {},
             "StackStatus": "CREATE_COMPLETE",
             "DisableRollback": false,
@@ -31,25 +31,25 @@
             "Outputs": [
                 {
                     "OutputKey": "PrivateSubnetIds",
-                    "OutputValue": "subnet-0086a2ee7a6edb6fd,subnet-0aad0ddf0a7ec5571",
+                    "OutputValue": "subnet-0612c95aa15c2358e,subnet-0a52d68b4b5d1798c",
                     "Description": "List of private subnet IDs",
                     "ExportName": "mp-network-PrivateSubnetIds"
                 },
                 {
                     "OutputKey": "InternetGatewayId",
-                    "OutputValue": "igw-030a11264cc547786",
+                    "OutputValue": "igw-058c1aa7dfac5b67d",
                     "Description": "Internet Gateway ID",
                     "ExportName": "mp-network-InternetGatewayId"
                 },
                 {
                     "OutputKey": "PublicSubnetIds",
-                    "OutputValue": "subnet-06c796ff0e4b8a21f,subnet-04810d792accf3461",
+                    "OutputValue": "subnet-016c098b2d656f375,subnet-08a91832da81ed3fe",
                     "Description": "List of public subnet IDs",
                     "ExportName": "mp-network-PublicSubnetIds"
                 },
                 {
                     "OutputKey": "VpcId",
-                    "OutputValue": "vpc-0d8d2735fa6615896",
+                    "OutputValue": "vpc-087adadd82b8fa86b",
                     "Description": "VPC ID",
                     "ExportName": "mp-network-VpcId"
                 },
@@ -61,31 +61,31 @@
                 },
                 {
                     "OutputKey": "PublicSubnet1Id",
-                    "OutputValue": "subnet-06c796ff0e4b8a21f",
+                    "OutputValue": "subnet-016c098b2d656f375",
                     "Description": "Public Subnet 1 ID",
                     "ExportName": "mp-network-PublicSubnet1Id"
                 },
                 {
                     "OutputKey": "PublicSubnet2Id",
-                    "OutputValue": "subnet-04810d792accf3461",
+                    "OutputValue": "subnet-08a91832da81ed3fe",
                     "Description": "Public Subnet 2 ID",
                     "ExportName": "mp-network-PublicSubnet2Id"
                 },
                 {
                     "OutputKey": "PrivateSubnet2Id",
-                    "OutputValue": "subnet-0aad0ddf0a7ec5571",
+                    "OutputValue": "subnet-0a52d68b4b5d1798c",
                     "Description": "Private Subnet 2 ID",
                     "ExportName": "mp-network-PrivateSubnet2Id"
                 },
                 {
                     "OutputKey": "PrivateSubnet1Id",
-                    "OutputValue": "subnet-0086a2ee7a6edb6fd",
+                    "OutputValue": "subnet-0612c95aa15c2358e",
                     "Description": "Private Subnet 1 ID",
                     "ExportName": "mp-network-PrivateSubnet1Id"
                 },
                 {
                     "OutputKey": "NatGatewayId",
-                    "OutputValue": "nat-00dc547bcd71920c6",
+                    "OutputValue": "nat-0541052229ba447e0",
                     "Description": "NAT Gateway ID",
                     "ExportName": "mp-network-NatGatewayId"
                 },
@@ -104,7 +104,7 @@
             "LastOperations": [
                 {
                     "OperationType": "CREATE_STACK",
-                    "OperationId": "bfca329d-e90d-4b24-abdc-e81cfd657f39"
+                    "OperationId": "45e9e956-5688-4c3a-8fc8-ab50c6193594"
                 }
             ]
         }

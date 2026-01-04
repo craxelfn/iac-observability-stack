@@ -1,9 +1,9 @@
 {
     "Stacks": [
         {
-            "StackId": "arn:aws:cloudformation:us-east-2:956484174137:stack/mp-governance/b891e470-e8bc-11f0-9ebb-026eb99f1215",
+            "StackId": "arn:aws:cloudformation:us-east-2:956484174137:stack/mp-governance/d496a7e0-e93f-11f0-876a-066307a166e3",
             "StackName": "mp-governance",
-            "ChangeSetId": "arn:aws:cloudformation:us-east-2:956484174137:changeSet/awscli-cloudformation-package-deploy-1767455768/53ff86bb-60c5-4a8b-a0db-4f72463ac8ea",
+            "ChangeSetId": "arn:aws:cloudformation:us-east-2:956484174137:changeSet/awscli-cloudformation-package-deploy-1767512079/8d2b0550-a779-46e8-92aa-5e322a43eb3d",
             "Description": "MasterProject Governance Infrastructure\nCreates CloudTrail for audit logging and AWS Config for compliance monitoring.\n",
             "Parameters": [
                 {
@@ -23,8 +23,8 @@
                     "ParameterValue": "dev"
                 }
             ],
-            "CreationTime": "2026-01-03T15:56:09.730000+00:00",
-            "LastUpdatedTime": "2026-01-03T15:56:15.517000+00:00",
+            "CreationTime": "2026-01-04T07:34:40.812000+00:00",
+            "LastUpdatedTime": "2026-01-04T07:34:46.365000+00:00",
             "RollbackConfiguration": {},
             "StackStatus": "CREATE_COMPLETE",
             "DisableRollback": false,
@@ -90,7 +90,7 @@
             "LastOperations": [
                 {
                     "OperationType": "CREATE_STACK",
-                    "OperationId": "0e00b32d-bec2-4584-925a-bf63a307b2a6"
+                    "OperationId": "119d9f3b-8f15-43d2-bff6-2f280d3be13e"
                 }
             ]
         }

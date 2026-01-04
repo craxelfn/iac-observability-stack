@@ -1,9 +1,9 @@
 {
     "Stacks": [
         {
-            "StackId": "arn:aws:cloudformation:us-east-2:956484174137:stack/mp-observability/a0d64ce0-e8bc-11f0-8ce1-06f1400f2db9",
+            "StackId": "arn:aws:cloudformation:us-east-2:956484174137:stack/mp-observability/bd4a4ce0-e93f-11f0-9f17-060bd3005b8b",
             "StackName": "mp-observability",
-            "ChangeSetId": "arn:aws:cloudformation:us-east-2:956484174137:changeSet/awscli-cloudformation-package-deploy-1767455729/5f4e04a8-032d-48cd-ab56-d2a24020f84f",
+            "ChangeSetId": "arn:aws:cloudformation:us-east-2:956484174137:changeSet/awscli-cloudformation-package-deploy-1767512041/f902e5bc-3599-461f-935b-ce5386ab1d8c",
             "Description": "MasterProject Observability Stack\nCreates CloudWatch Log Groups, Metric Filters, Alarms, SNS Topic, and Dashboard\nfor comprehensive monitoring and alerting.\n",
             "Parameters": [
                 {
@@ -27,8 +27,8 @@
                     "ParameterValue": "7"
                 }
             ],
-            "CreationTime": "2026-01-03T15:55:29.911000+00:00",
-            "LastUpdatedTime": "2026-01-03T15:55:35.643000+00:00",
+            "CreationTime": "2026-01-04T07:34:01.714000+00:00",
+            "LastUpdatedTime": "2026-01-04T07:34:07.444000+00:00",
             "RollbackConfiguration": {},
             "StackStatus": "CREATE_COMPLETE",
             "DisableRollback": false,
@@ -45,19 +45,19 @@
                 },
                 {
                     "OutputKey": "SystemLogGroupName",
-                    "OutputValue": "/masterproject/system",
+                    "OutputValue": "/aws/MasterProject/dev/system",
                     "Description": "System Log Group Name",
                     "ExportName": "mp-observability-SystemLogGroupName"
                 },
                 {
                     "OutputKey": "AppLogGroupArn",
-                    "OutputValue": "arn:aws:logs:us-east-2:956484174137:log-group:/masterproject/app:*",
+                    "OutputValue": "arn:aws:logs:us-east-2:956484174137:log-group:/aws/MasterProject/dev/app:*",
                     "Description": "Application Log Group ARN",
                     "ExportName": "mp-observability-AppLogGroupArn"
                 },
                 {
                     "OutputKey": "AppLogGroupName",
-                    "OutputValue": "/masterproject/app",
+                    "OutputValue": "/aws/MasterProject/dev/app",
                     "Description": "Application Log Group Name",
                     "ExportName": "mp-observability-AppLogGroupName"
                 },
@@ -82,7 +82,7 @@
             "LastOperations": [
                 {
                     "OperationType": "CREATE_STACK",
-                    "OperationId": "a641f73e-756b-4301-926f-5d02b76ea951"
+                    "OperationId": "cab88f8e-2b8f-4ef1-9073-c12d9aa724e4"
                 }
             ]
         }
