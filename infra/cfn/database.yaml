@@ -166,13 +166,12 @@ Resources:
       DBInstanceIdentifier: !Sub '${Project}-${Environment}-db'
       DBName: !Ref DBName
       Engine: postgres
-      EngineVersion: '15.8'  # Using available version
+      EngineVersion: '15.15'  # Latest available version in region
       DBInstanceClass: !Ref DBInstanceClass
       
       # Storage configuration
       AllocatedStorage: !Ref DBAllocatedStorage
       StorageType: gp3
-      Iops: 3000
       StorageEncrypted: true
       
       # Network configuration
