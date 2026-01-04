@@ -74,6 +74,32 @@ Parameters:
     Default: 'ChangeMe123!'
     Description: Database password for application connection
 
+  DBHost:
+    Type: String
+    Default: 'localhost'
+    Description: Database endpoint (set this after deploying mp-database stack)
+
+  DBEnabled:
+    Type: String
+    Default: 'false'
+    AllowedValues:
+      - 'true'
+      - 'false'
+    Description: Enable database connection
+
+  RedisHost:
+    Type: String
+    Default: 'localhost'
+    Description: Redis endpoint (set this after deploying mp-cache stack)
+
+  RedisEnabled:
+    Type: String
+    Default: 'false'
+    AllowedValues:
+      - 'true'
+      - 'false'
+    Description: Enable Redis caching
+
 Conditions:
   HasDatabase: !Not [!Equals [!Ref DatabaseStackName, '']]
   HasCache: !Not [!Equals [!Ref CacheStackName, '']]
@@ -255,18 +281,16 @@ Resources:
         Monitoring:
           Enabled: true
         UserData:
-          Fn::Base64:
-            Fn::Sub:
-              - |
-                #!/bin/bash
-                set -ex
-                
-                # Environment variables for database and cache
-                DB_HOST="${DBHost}"
-                DB_ENABLED="${DBEnabled}"
-                REDIS_HOST="${RedisHost}"
-                REDIS_ENABLED="${RedisEnabled}"
-                DB_PASSWORD="${DBPassword}"
+          Fn::Base64: !Sub |
+            #!/bin/bash
+            set -ex
+            
+            # Environment variables for database and cache
+            DB_HOST="${DBHost}"
+            DB_ENABLED="${DBEnabled}"
+            REDIS_HOST="${RedisHost}"
+            REDIS_ENABLED="${RedisEnabled}"
+            DB_PASSWORD="${DBPassword}"
             
             # Update system
             dnf update -y
@@ -706,19 +730,6 @@ Resources:
             
             # Signal completion (for ASG health checks)
             echo "UserData script completed successfully" >> /var/log/masterproject/bootstrap.log
-              - DBHost: !If
-                  - HasDatabase
-                  - !ImportValue
-                    Fn::Sub: '${DatabaseStackName}-DBEndpoint'
-                  - 'localhost'
-                DBEnabled: !If [HasDatabase, 'true', 'false']
-                RedisHost: !If
-                  - HasCache
-                  - !ImportValue
-                    Fn::Sub: '${CacheStackName}-RedisEndpoint'
-                  - 'localhost'
-                RedisEnabled: !If [HasCache, 'true', 'false']
-                DBPassword: !Ref DBPassword
         TagSpecifications:
           - ResourceType: instance
             Tags:
