@@ -1,0 +1,285 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: |
+  MasterProject RDS PostgreSQL Database
+  Creates subnet group, parameter group, security group, and RDS instance
+  with Performance Insights enabled for query optimization.
+
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - staging
+      - prod
+    Description: Environment name for resource tagging
+
+  Project:
+    Type: String
+    Default: MasterProject
+    Description: Project name for resource tagging
+
+  NetworkStackName:
+    Type: String
+    Default: mp-network
+    Description: Name of the network stack for cross-stack references
+
+  SecurityStackName:
+    Type: String
+    Default: mp-security
+    Description: Name of the security stack for cross-stack references
+
+  DBInstanceClass:
+    Type: String
+    Default: db.t3.small
+    AllowedValues:
+      - db.t3.micro
+      - db.t3.small
+      - db.t3.medium
+    Description: RDS instance class
+
+  DBAllocatedStorage:
+    Type: Number
+    Default: 20
+    MinValue: 20
+    MaxValue: 100
+    Description: Allocated storage in GB
+
+  DBName:
+    Type: String
+    Default: masterprojectdb
+    Description: Database name
+    AllowedPattern: '[a-zA-Z][a-zA-Z0-9]*'
+
+  DBUsername:
+    Type: String
+    Default: dbadmin
+    Description: Database master username
+    AllowedPattern: '[a-zA-Z][a-zA-Z0-9]*'
+    MinLength: 1
+    MaxLength: 16
+
+  DBPassword:
+    Type: String
+    NoEcho: true
+    Description: Database master password (minimum 8 characters)
+    MinLength: 8
+    MaxLength: 41
+    Default: ChangeMe123!
+    AllowedPattern: '^[a-zA-Z0-9!@#$%^&*()_+=-]*$'
+
+Resources:
+  # ============================================================================
+  # DB Subnet Group
+  # ============================================================================
+  DBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupName: !Sub '${Project}-${Environment}-db-subnet-group'
+      DBSubnetGroupDescription: Subnet group for RDS database
+      SubnetIds:
+        - !ImportValue
+          Fn::Sub: '${NetworkStackName}-PrivateSubnet1Id'
+        - !ImportValue
+          Fn::Sub: '${NetworkStackName}-PrivateSubnet2Id'
+      Tags:
+        - Key: Name
+          Value: !Sub '${Project}-${Environment}-db-subnet-group'
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Project
+          Value: !Ref Project
+
+  # ============================================================================
+  # DB Parameter Group - PostgreSQL 15 Optimized
+  # ============================================================================
+  DBParameterGroup:
+    Type: AWS::RDS::DBParameterGroup
+    Properties:
+      Family: postgres15
+      Description: !Sub '${Project} PostgreSQL 15 optimized parameters'
+      Parameters:
+        # Memory configuration
+        shared_buffers: '{DBInstanceClassMemory/4}'  # 25% of instance memory
+        effective_cache_size: '{DBInstanceClassMemory/2}'  # 50% for query planner
+        work_mem: '16384'  # 16MB per operation
+        maintenance_work_mem: '262144'  # 256MB for VACUUM, CREATE INDEX
+        
+        # Connection settings
+        max_connections: '200'
+        
+        # Query logging for performance analysis
+        log_statement: 'mod'  # Log all DDL and DML statements
+        log_min_duration_statement: '1000'  # Log queries taking > 1 second
+        log_line_prefix: '%t [%p]: [%l-1] user=%u,db=%d,app=%a,client=%h '
+        
+        # Performance tuning
+        random_page_cost: '1.1'  # Optimized for SSD
+        effective_io_concurrency: '200'  # For SSD storage
+        
+        # Checkpoint tuning
+        checkpoint_completion_target: '0.9'
+        wal_buffers: '16MB'
+        
+        # Parallelism
+        max_worker_processes: '4'
+        max_parallel_workers_per_gather: '2'
+        max_parallel_workers: '4'
+        
+      Tags:
+        - Key: Name
+          Value: !Sub '${Project}-${Environment}-db-params'
+        - Key: Environment
+          Value: !Ref Environment
+
+  # ============================================================================
+  # Security Group for RDS
+  # ============================================================================
+  RDSSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub '${Project}-${Environment}-rds-sg'
+      GroupDescription: Security group for RDS PostgreSQL database
+      VpcId: !ImportValue
+        Fn::Sub: '${NetworkStackName}-VpcId'
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 5432
+          ToPort: 5432
+          SourceSecurityGroupId: !ImportValue
+            Fn::Sub: '${SecurityStackName}-EC2SecurityGroupId'
+          Description: PostgreSQL access from EC2 instances
+      Tags:
+        - Key: Name
+          Value: !Sub '${Project}-${Environment}-rds-sg'
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Project
+          Value: !Ref Project
+
+  # ============================================================================
+  # RDS Instance - PostgreSQL 15
+  # ============================================================================
+  DBInstance:
+    Type: AWS::RDS::DBInstance
+    DeletionPolicy: Snapshot
+    UpdateReplacePolicy: Snapshot
+    Properties:
+      DBInstanceIdentifier: !Sub '${Project}-${Environment}-db'
+      DBName: !Ref DBName
+      Engine: postgres
+      EngineVersion: '15.5'
+      DBInstanceClass: !Ref DBInstanceClass
+      
+      # Storage configuration
+      AllocatedStorage: !Ref DBAllocatedStorage
+      StorageType: gp3
+      Iops: 3000
+      StorageEncrypted: true
+      
+      # Network configuration
+      DBSubnetGroupName: !Ref DBSubnetGroup
+      VPCSecurityGroups:
+        - !Ref RDSSecurityGroup
+      PubliclyAccessible: false
+      
+      # High availability (disabled for cost in dev/test)
+      MultiAZ: false
+      
+      # Authentication
+      MasterUsername: !Ref DBUsername
+      MasterUserPassword: !Ref DBPassword
+      
+      # Backup configuration
+      BackupRetentionPeriod: 7
+      PreferredBackupWindow: '03:00-04:00'
+      PreferredMaintenanceWindow: 'sun:04:00-sun:05:00'
+      CopyTagsToSnapshot: true
+      
+      # Monitoring and logs
+      EnablePerformanceInsights: true
+      PerformanceInsightsRetentionPeriod: 7  # Free tier: 7 days
+      MonitoringInterval: 60  # Enhanced monitoring every 60 seconds
+      MonitoringRoleArn: !GetAtt RDSMonitoringRole.Arn
+      EnableCloudwatchLogsExports:
+        - postgresql
+        - upgrade
+      
+      # Performance configuration
+      DBParameterGroupName: !Ref DBParameterGroup
+      
+      # Auto minor version upgrade
+      AutoMinorVersionUpgrade: true
+      
+      # Deletion protection (disabled for dev, enable for prod)
+      DeletionProtection: false
+      
+      Tags:
+        - Key: Name
+          Value: !Sub '${Project}-${Environment}-db'
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Project
+          Value: !Ref Project
+
+  # ============================================================================
+  # IAM Role for RDS Enhanced Monitoring
+  # ============================================================================
+  RDSMonitoringRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${Project}-${Environment}-rds-monitoring-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: monitoring.rds.amazonaws.com
+            Action: 'sts:AssumeRole'
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/service-role/AmazonRDSEnhancedMonitoringRole'
+      Tags:
+        - Key: Name
+          Value: !Sub '${Project}-${Environment}-rds-monitoring-role'
+        - Key: Environment
+          Value: !Ref Environment
+
+# ============================================================================
+# Outputs
+# ============================================================================
+Outputs:
+  DBInstanceEndpoint:
+    Description: RDS instance endpoint address
+    Value: !GetAtt DBInstance.Endpoint.Address
+    Export:
+      Name: !Sub '${AWS::StackName}-DBEndpoint'
+
+  DBInstancePort:
+    Description: RDS instance port
+    Value: !GetAtt DBInstance.Endpoint.Port
+    Export:
+      Name: !Sub '${AWS::StackName}-DBPort'
+
+  DBName:
+    Description: Database name
+    Value: !Ref DBName
+    Export:
+      Name: !Sub '${AWS::StackName}-DBName'
+
+  DBUsername:
+    Description: Database master username
+    Value: !Ref DBUsername
+    Export:
+      Name: !Sub '${AWS::StackName}-DBUsername'
+
+  RDSSecurityGroupId:
+    Description: Security group ID for RDS
+    Value: !Ref RDSSecurityGroup
+    Export:
+      Name: !Sub '${AWS::StackName}-RDSSecurityGroupId'
+
+  DBInstanceIdentifier:
+    Description: RDS instance identifier
+    Value: !Ref DBInstance
+    Export:
+      Name: !Sub '${AWS::StackName}-DBInstanceId'

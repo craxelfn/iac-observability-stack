@@ -1,0 +1,166 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: |
+  MasterProject ElastiCache Redis Cluster
+  Creates subnet group, parameter group, security group, and Redis cluster
+  with encryption enabled for caching.
+
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - staging
+      - prod
+    Description: Environment name for resource tagging
+
+  Project:
+    Type: String
+    Default: MasterProject
+    Description: Project name for resource tagging
+
+  NetworkStackName:
+    Type: String
+    Default: mp-network
+    Description: Name of the network stack for cross-stack references
+
+  SecurityStackName:
+    Type: String
+    Default: mp-security
+    Description: Name of the security stack for cross-stack references
+
+  CacheNodeType:
+    Type: String
+    Default: cache.t3.micro
+    AllowedValues:
+      - cache.t3.micro
+      - cache.t3.small
+      - cache.t3.medium
+    Description: ElastiCache node type
+
+Resources:
+  # ============================================================================
+  # Cache Subnet Group
+  # ============================================================================
+  CacheSubnetGroup:
+    Type: AWS::ElastiCache::SubnetGroup
+    Properties:
+      CacheSubnetGroupName: !Sub '${Project}-${Environment}-cache-subnet-group'
+      Description: Subnet group for ElastiCache Redis
+      SubnetIds:
+        - !ImportValue
+          Fn::Sub: '${NetworkStackName}-PrivateSubnet1Id'
+        - !ImportValue
+          Fn::Sub: '${NetworkStackName}-PrivateSubnet2Id'
+      Tags:
+        - Key: Name
+          Value: !Sub '${Project}-${Environment}-cache-subnet-group'
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Project
+          Value: !Ref Project
+
+  # ============================================================================
+  # Cache Parameter Group - Redis 7
+  # ============================================================================
+  CacheParameterGroup:
+    Type: AWS::ElastiCache::ParameterGroup
+    Properties:
+      CacheParameterGroupFamily: redis7
+      Description: !Sub '${Project} Redis 7 parameters with LRU eviction'
+      Properties:
+        maxmemory-policy: allkeys-lru  # Evict least recently used keys
+        timeout: '300'  # Close client connections after 5 minutes of inactivity
+
+  # ============================================================================
+  # Security Group for Redis
+  # ============================================================================
+  RedisSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub '${Project}-${Environment}-redis-sg'
+      GroupDescription: Security group for ElastiCache Redis
+      VpcId: !ImportValue
+        Fn::Sub: '${NetworkStackName}-VpcId'
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 6379
+          ToPort: 6379
+          SourceSecurityGroupId: !ImportValue
+            Fn::Sub: '${SecurityStackName}-EC2SecurityGroupId'
+          Description: Redis access from EC2 instances
+      Tags:
+        - Key: Name
+          Value: !Sub '${Project}-${Environment}-redis-sg'
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Project
+          Value: !Ref Project
+
+  # ============================================================================
+  # ElastiCache Redis Cluster
+  # ============================================================================
+  RedisCluster:
+    Type: AWS::ElastiCache::CacheCluster
+    Properties:
+      CacheClusterName: !Sub '${Project}-${Environment}-redis'
+      Engine: redis
+      EngineVersion: '7.1'
+      CacheNodeType: !Ref CacheNodeType
+      NumCacheNodes: 1
+      
+      # Network configuration
+      CacheSubnetGroupName: !Ref CacheSubnetGroup
+      VpcSecurityGroupIds:
+        - !Ref RedisSecurityGroup
+      
+      # Parameter group
+      CacheParameterGroupName: !Ref CacheParameterGroup
+      
+      # Encryption
+      TransitEncryptionEnabled: true
+      AtRestEncryptionEnabled: true
+      
+      # Maintenance
+      PreferredMaintenanceWindow: 'sun:05:00-sun:06:00'
+      AutoMinorVersionUpgrade: true
+      
+      # Snapshots (for persistence)
+      SnapshotRetentionLimit: 5
+      SnapshotWindow: '03:00-05:00'
+      
+      Tags:
+        - Key: Name
+          Value: !Sub '${Project}-${Environment}-redis'
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Project
+          Value: !Ref Project
+
+# ============================================================================
+# Outputs
+# ============================================================================
+Outputs:
+  RedisEndpoint:
+    Description: Redis cluster endpoint address
+    Value: !GetAtt RedisCluster.RedisEndpoint.Address
+    Export:
+      Name: !Sub '${AWS::StackName}-RedisEndpoint'
+
+  RedisPort:
+    Description: Redis cluster endpoint port
+    Value: !GetAtt RedisCluster.RedisEndpoint.Port
+    Export:
+      Name: !Sub '${AWS::StackName}-RedisPort'
+
+  RedisSecurityGroupId:
+    Description: Security group ID for Redis
+    Value: !Ref RedisSecurityGroup
+    Export:
+      Name: !Sub '${AWS::StackName}-RedisSecurityGroupId'
+
+  CacheClusterName:
+    Description: Cache cluster name
+    Value: !Ref RedisCluster
+    Export:
+      Name: !Sub '${AWS::StackName}-CacheClusterName'

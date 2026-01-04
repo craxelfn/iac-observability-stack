@@ -17,6 +17,20 @@ from fastapi.responses import JSONResponse
 
 from config import settings
 
+# Try to import database module (optional, graceful fallback)
+try:
+    from database import check_db_connection, init_db, get_products_by_category, get_product_by_id, count_products_by_category
+    DATABASE_ENABLED = settings.DB_ENABLED
+except ImportError:
+    DATABASE_ENABLED = False
+
+# Try to import cache module (optional, graceful fallback)
+try:
+    from cache import get_cache, set_cache, get_cache_stats, check_cache_connection, cache_metrics
+    CACHE_ENABLED = settings.REDIS_ENABLED
+except ImportError:
+    CACHE_ENABLED = False
+
 # Try to import X-Ray SDK (optional, graceful fallback)
 try:
     from aws_xray_sdk.core import xray_recorder, patch_all
@@ -91,6 +105,22 @@ logger = setup_logging()
 async def lifespan(app: FastAPI):
     """Application lifespan handler for startup/shutdown."""
     logger.info("Application starting up", extra={"event": "startup"})
+    
+    # Check database connection
+    if DATABASE_ENABLED:
+        if check_db_connection():
+            logger.info("Database connection established")
+            init_db()  # Create tables if they don't exist
+        else:
+            logger.warning("Database connection failed, running without database")
+    
+    # Check cache connection
+    if CACHE_ENABLED:
+        if check_cache_connection():
+            logger.info("Redis cache connection established")
+        else:
+            logger.warning("Redis connection failed, running without cache")
+    
     yield
     logger.info("Application shutting down", extra={"event": "shutdown"})
 
@@ -279,16 +309,206 @@ async def trigger_error(request: Request):
 @app.get("/")
 async def root():
     """Root endpoint with API information."""
+    endpoints = {
+        "health": "/health",
+        "items": "/items?count=10",
+        "error": "/error",
+    }
+    
+    # Add Phase 3 endpoints if enabled
+    if DATABASE_ENABLED:
+        endpoints["products"] = "/products?category=electronics"
+        endpoints["product_by_id"] = "/products/1"
+    
+    if CACHE_ENABLED:
+        endpoints["cache_stats"] = "/cache/stats"
+    
     return {
         "service": settings.SERVICE_NAME,
         "version": "1.0.0",
-        "endpoints": {
-            "health": "/health",
-            "items": "/items?count=10",
-            "error": "/error",
-        },
+        "endpoints": endpoints,
         "documentation": "/docs",
+        "features": {
+            "database": DATABASE_ENABLED,
+            "cache": CACHE_ENABLED,
+            "xray": XRAY_ENABLED,
+        },
     }
+
+
+# ============================================================================
+# Phase 3: Database Endpoints
+# ============================================================================
+if DATABASE_ENABLED:
+    @app.get("/products")
+    async def get_products(
+        request: Request,
+        category: Optional[str] = Query(None, description="Filter by category"),
+        limit: int = Query(100, ge=1, le=1000, description="Max products to return"),
+        offset: int = Query(0, ge=0, description="Offset for pagination"),
+    ):
+        """
+        Get products from database with optional caching.
+        
+        Args:
+            category: Filter by product category
+            limit: Maximum number of products to return
+            offset: Offset for pagination
+            
+        Returns:
+            JSON array of products with caching metadata
+        """
+        request_id = getattr(request.state, "request_id", "unknown")
+        start_time = time.time()
+        
+        # Build cache key
+        cache_key = f"products:category:{category or 'all'}:limit:{limit}:offset:{offset}"
+        
+        # Try cache first if enabled
+        cached_result = None
+        if CACHE_ENABLED:
+            cached_result = get_cache(cache_key)
+            if cached_result:
+                logger.info(
+                    f"Cache HIT for products query",
+                    extra={
+                        "request_id": request_id,
+                        "cache_key": cache_key,
+                        "duration_ms": round((time.time() - start_time) * 1000, 2),
+                    },
+                )
+                return cached_result
+        
+        # Cache miss - query database
+        try:
+            if category:
+                products = get_products_by_category(category, limit, offset)
+                total_count = count_products_by_category(category)
+            else:
+                # Get all products (no category filter)
+                products = get_products_by_category(None, limit, offset)
+                total_count = count_products_by_category(None)
+            
+            result = {
+                "products": products,
+                "count": len(products),
+                "total": total_count,
+                "category": category,
+                "limit": limit,
+                "offset": offset,
+                "request_id": request_id,
+                "cached": False,
+            }
+            
+            # Store in cache (2 minute TTL)
+            if CACHE_ENABLED:
+                set_cache(cache_key, result, ttl=120)
+            
+            logger.info(
+                f"Database query for products",
+                extra={
+                    "request_id": request_id,
+                    "category": category,
+                    "count": len(products),
+                    "duration_ms": round((time.time() - start_time) * 1000, 2),
+                },
+            )
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error querying products: {e}", extra={"request_id": request_id})
+            return JSONResponse(
+                status_code=500,
+                content={"error": "Database query failed", "request_id": request_id},
+            )
+    
+    @app.get("/products/{product_id}")
+    async def get_product(request: Request, product_id: int):
+        """
+        Get single product by ID with caching.
+        
+        Args:
+            product_id: Product ID
+            
+        Returns:
+            JSON product object or 404
+        """
+        request_id = getattr(request.state, "request_id", "unknown")
+        start_time = time.time()
+        
+        # Build cache key
+        cache_key = f"product:id:{product_id}"
+        
+        # Try cache first if enabled
+        if CACHE_ENABLED:
+            cached_result = get_cache(cache_key)
+            if cached_result:
+                logger.info(
+                    f"Cache HIT for product {product_id}",
+                    extra={"request_id": request_id, "product_id": product_id},
+                )
+                return {**cached_result, "cached": True, "request_id": request_id}
+        
+        # Cache miss - query database
+        try:
+            product = get_product_by_id(product_id)
+            
+            if product is None:
+                return JSONResponse(
+                    status_code=404,
+                    content={"error": "Product not found", "product_id": product_id, "request_id": request_id},
+                )
+            
+            # Store in cache (5 minute TTL)
+            if CACHE_ENABLED:
+                set_cache(cache_key, product, ttl=300)
+            
+            logger.info(
+                f"Database query for product {product_id}",
+                extra={
+                    "request_id": request_id,
+                    "product_id": product_id,
+                    "duration_ms": round((time.time() - start_time) * 1000, 2),
+                },
+            )
+            
+            return {**product, "cached": False, "request_id": request_id}
+            
+        except Exception as e:
+            logger.error(f"Error querying product {product_id}: {e}", extra={"request_id": request_id})
+            return JSONResponse(
+                status_code=500,
+                content={"error": "Database query failed", "request_id": request_id},
+            )
+
+
+# ============================================================================
+# Phase 3: Cache Stats Endpoint
+# ============================================================================
+if CACHE_ENABLED:
+    @app.get("/cache/stats")
+    async def get_cache_statistics():
+        """
+        Get cache performance statistics.
+        
+        Returns:
+            JSON with cache hit rate, metrics, and Redis info
+        """
+        try:
+            stats = get_cache_stats()
+            return {
+                "status": "healthy",
+                "cache_enabled": True,
+                "metrics": stats,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            }
+        except Exception as e:
+            logger.error(f"Error getting cache stats: {e}")
+            return JSONResponse(
+                status_code=500,
+                content={"error": "Cache stats unavailable", "cache_enabled": False},
+            )
 
 
 # ============================================================================

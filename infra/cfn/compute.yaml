@@ -45,7 +45,7 @@ Parameters:
 
   MaxSize:
     Type: Number
-    Default: 6
+    Default: 10
     Description: Maximum number of instances in ASG
 
   DesiredCapacity:
@@ -57,6 +57,26 @@ Parameters:
     Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
     Default: '/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-6.1-x86_64'
     Description: Latest Amazon Linux 2023 AMI ID from SSM Parameter Store
+
+  DatabaseStackName:
+    Type: String
+    Default: 'mp-database'
+    Description: Name of the database stack for cross-stack references (leave empty to disable)
+
+  CacheStackName:
+    Type: String
+    Default: 'mp-cache'
+    Description: Name of the cache stack for cross-stack references (leave empty to disable)
+
+  DBPassword:
+    Type: String
+    NoEcho: true
+    Default: 'ChangeMe123!'
+    Description: Database password for application connection
+
+Conditions:
+  HasDatabase: !Not [!Equals [!Ref DatabaseStackName, '']]
+  HasCache: !Not [!Equals [!Ref CacheStackName, '']]
 
 Resources:
   # ============================================================================
@@ -235,9 +255,18 @@ Resources:
         Monitoring:
           Enabled: true
         UserData:
-          Fn::Base64: !Sub |
-            #!/bin/bash
-            set -ex
+          Fn::Base64:
+            Fn::Sub:
+              - |
+                #!/bin/bash
+                set -ex
+                
+                # Environment variables for database and cache
+                DB_HOST="${DBHost}"
+                DB_ENABLED="${DBEnabled}"
+                REDIS_HOST="${RedisHost}"
+                REDIS_ENABLED="${RedisEnabled}"
+                DB_PASSWORD="${DBPassword}"
             
             # Update system
             dnf update -y
@@ -368,6 +397,9 @@ Resources:
             pydantic==2.5.3
             pydantic-settings==2.1.0
             python-dotenv==1.0.0
+            psycopg2-binary==2.9.9
+            sqlalchemy==2.0.23
+            redis==5.0.1
             REQEOF
             
             # Create config.py
@@ -640,8 +672,18 @@ Resources:
             Type=simple
             User=ec2-user
             WorkingDirectory=/opt/masterproject
-            Environment=ENVIRONMENT=dev
-            Environment=AWS_REGION=us-east-2
+            Environment=ENVIRONMENT=${Environment}
+            Environment=AWS_REGION=${AWS::Region}
+            Environment=DB_HOST=${DBHost}
+            Environment=DB_PORT=5432
+            Environment=DB_NAME=masterprojectdb
+            Environment=DB_USER=dbadmin
+            Environment=DB_PASSWORD=${DBPassword}
+            Environment=DB_ENABLED=${DBEnabled}
+            Environment=REDIS_HOST=${RedisHost}
+            Environment=REDIS_PORT=6379
+            Environment=REDIS_SSL=true
+            Environment=REDIS_ENABLED=${RedisEnabled}
             ExecStart=/usr/bin/python3.11 -m uvicorn main:app --host 0.0.0.0 --port 8080
             Restart=always
             RestartSec=5
@@ -664,6 +706,19 @@ Resources:
             
             # Signal completion (for ASG health checks)
             echo "UserData script completed successfully" >> /var/log/masterproject/bootstrap.log
+              - DBHost: !If
+                  - HasDatabase
+                  - !ImportValue
+                    Fn::Sub: '${DatabaseStackName}-DBEndpoint'
+                  - 'localhost'
+                DBEnabled: !If [HasDatabase, 'true', 'false']
+                RedisHost: !If
+                  - HasCache
+                  - !ImportValue
+                    Fn::Sub: '${CacheStackName}-RedisEndpoint'
+                  - 'localhost'
+                RedisEnabled: !If [HasCache, 'true', 'false']
+                DBPassword: !Ref DBPassword
         TagSpecifications:
           - ResourceType: instance
             Tags:
@@ -714,6 +769,103 @@ Resources:
         - Key: Project
           Value: !Ref Project
           PropagateAtLaunch: true
+
+  # ============================================================================
+  # Auto Scaling Policies
+  # ============================================================================
+  
+  # Target Tracking - CPU Based
+  CPUScalingPolicy:
+    Type: AWS::AutoScaling::ScalingPolicy
+    Properties:
+      AutoScalingGroupName: !Ref AutoScalingGroup
+      PolicyType: TargetTrackingScaling
+      TargetTrackingConfiguration:
+        PredefinedMetricSpecification:
+          PredefinedMetricType: ASGAverageCPUUtilization
+        TargetValue: 55.0
+        
+  # Target Tracking - Request Count Based
+  RequestCountScalingPolicy:
+    Type: AWS::AutoScaling::ScalingPolicy
+    Properties:
+      AutoScalingGroupName: !Ref AutoScalingGroup
+      PolicyType: TargetTrackingScaling
+      TargetTrackingConfiguration:
+        PredefinedMetricSpecification:
+          PredefinedMetricType: ALBRequestCountPerTarget
+          ResourceLabel: !Join
+            - '/'
+            - - !GetAtt ApplicationLoadBalancer.LoadBalancerFullName
+              - !GetAtt TargetGroup.TargetGroupFullName
+        TargetValue: 1000.0
+        
+  # Step Scaling Policy for Response Time Bursts
+  ScaleOutPolicy:
+    Type: AWS::AutoScaling::ScalingPolicy
+    Properties:
+      AutoScalingGroupName: !Ref AutoScalingGroup
+      PolicyType: StepScaling
+      AdjustmentType: ChangeInCapacity
+      MetricAggregationType: Average
+      EstimatedInstanceWarmup: 60
+      StepAdjustments:
+        - MetricIntervalLowerBound: 0
+          ScalingAdjustment: 2
+          
+  ScaleInPolicy:
+    Type: AWS::AutoScaling::ScalingPolicy
+    Properties:
+      AutoScalingGroupName: !Ref AutoScalingGroup
+      PolicyType: StepScaling
+      AdjustmentType: ChangeInCapacity
+      MetricAggregationType: Average
+      StepAdjustments:
+        - MetricIntervalUpperBound: 0
+          ScalingAdjustment: -1
+          
+  # CloudWatch Alarms for Step Scaling
+  HighResponseTimeAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${Project}-${Environment}-high-response-time'
+      AlarmDescription: 'Trigger scale out when response time is high'
+      MetricName: TargetResponseTime
+      Namespace: AWS/ApplicationELB
+      Statistic: Average
+      Period: 60
+      EvaluationPeriods: 2
+      Threshold: 1.0  # 1 second
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+        - Name: LoadBalancer
+          Value: !GetAtt ApplicationLoadBalancer.LoadBalancerFullName
+        - Name: TargetGroup
+          Value: !GetAtt TargetGroup.TargetGroupFullName
+      AlarmActions:
+        - !Ref ScaleOutPolicy
+      TreatMissingData: notBreaching
+        
+  LowResponseTimeAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${Project}-${Environment}-low-response-time'
+      AlarmDescription: 'Trigger scale in when response time is consistently low'
+      MetricName: TargetResponseTime
+      Namespace: AWS/ApplicationELB
+      Statistic: Average
+      Period: 60
+      EvaluationPeriods: 5
+      Threshold: 0.2  # 200ms
+      ComparisonOperator: LessThanThreshold
+      Dimensions:
+        - Name: LoadBalancer
+          Value: !GetAtt ApplicationLoadBalancer.LoadBalancerFullName
+        - Name: TargetGroup
+          Value: !GetAtt TargetGroup.TargetGroupFullName
+      AlarmActions:
+        - !Ref ScaleInPolicy
+      TreatMissingData: notBreaching
 
 # ============================================================================
 # Outputs
