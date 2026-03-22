@@ -2,6 +2,11 @@
 
 A fully observable, CloudFormation-managed infrastructure with a simple API demonstrating comprehensive monitoring and tracing capabilities.
 
+## 🏗️ Architecture Overview
+
+![Project Architecture](architecture.png)
+
+
 ## 📁 Project Structure
 
 ```
